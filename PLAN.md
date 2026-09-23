@@ -55,14 +55,20 @@ entirely — everything else carries over as a standard, always-a-window `QMainW
   elevation/speed/heart-rate/power stack) are a native PyQtGraph pattern (`setXLink()`, `InfiniteLine` for the
   crosshair), not something to build from scratch the way the Quickshell canvas version was. Replaces the
   hand-rolled `QPainter`-vs-`QtCharts` dilemma this plan started with.
+- **Notifications: a direct `org.freedesktop.Notifications` D-Bus call via `QtDBus`**, not
+  `QSystemTrayIcon.showMessage()` (which has no action-button support at all). Verified end to end, not assumed:
+  a real `Notify` call shaped exactly like `coach.py`'s excuse buttons (multiple `key`/`label` actions) round-
+  tripped through the session bus, and a simulated click correctly delivered `ActionInvoked` with the clicked
+  key back to a PyQt6 listener. `python-pyqt6` bundles `QtDBus` already — no extra package. Getting there needed
+  working around two PyQt6 marshaling defaults that don't match libnotify's real `Notify` signature
+  (`susssasa{sv}i`, confirmed via `busctl --user introspect`): a plain Python `int` is sent as `int32`, but
+  `replaces_id` needs `uint32`, and a plain Python list of strings is sent as an array of variants (`av`), but
+  `actions` needs a plain string array (`as`) — both need building through `QDBusArgument` with an explicit
+  `QMetaType` id rather than passed as bare Python values. This is a marshaling detail to get right when this
+  gets built, not a reason to avoid the approach — the interaction itself, replacing `notify-send -A`, works.
 
 ## Real open questions this plan doesn't answer yet
 
-- **Notifications.** `QSystemTrayIcon.showMessage()` is the native, cross-desktop way to show a popup, and could
-  replace shelling out to `notify-send`. It does **not** support the excuse buttons the coach's notifications
-  carry today (`-A key=label`) — that needs either a direct `org.freedesktop.Notifications` D-Bus call (what
-  `notify-send` does under the hood, doable from PyQt6 via `QtDBus`) to keep that exact interaction, or accepting
-  that clicking a coach notification just opens the app to where you'd pick an excuse instead. Not decided.
 - **Background refresh.** With the backend now in-process (no more subprocess-and-parse-JSON boundary to
   `bin/lapbar`), a periodic refresh must not block the Qt event loop — needs a worker thread (`QThread`, or a
   plain background thread posting results back via a Qt signal) rather than calling the network-blocking fetch
