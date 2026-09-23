@@ -6,7 +6,7 @@ controls (Open chart, skip-today, the quotes radio) are later steps; this is the
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
 
-from . import chartswindow, detailswindow, tooltip
+from . import chartswindow, detailswindow, fitnesschartwindow, tooltip
 
 
 def _stat_cells(latest: dict) -> list[tuple[str, str]]:
@@ -89,7 +89,15 @@ class MainWindow(QMainWindow):
         self.fitness_line = QLabel("")
         self.fitness_line.setWordWrap(True)
         fitness_layout.addWidget(self.fitness_line)
+        fitness_chart_row = QHBoxLayout()
+        fitness_chart_row.addStretch(1)
+        self.fitness_chart_button = QPushButton("Open chart")
+        self.fitness_chart_button.clicked.connect(self._open_fitness_chart)
+        fitness_chart_row.addWidget(self.fitness_chart_button)
+        fitness_layout.addLayout(fitness_chart_row)
         layout.addWidget(self.fitness_box)
+        self._latest_fitness: dict | None = None
+        self._fitness_chart_window: fitnesschartwindow.FitnessChartWindow | None = None
 
         self.totals_box = QGroupBox("Totals")
         totals_layout = QGridLayout(self.totals_box)
@@ -135,6 +143,7 @@ class MainWindow(QMainWindow):
         self.load_line.setText(tooltip.load_headline(summary.get("load")) or "No training last week to compare")
 
         fitness = summary.get("fitness") or {}
+        self._latest_fitness = fitness
         now, tomorrow = fitness.get("current"), fitness.get("tomorrow")
         if now and now.get("status") != "starting":
             status = tooltip.FITNESS_STATUS_NAME.get(now.get("status"), "").lower()
@@ -163,3 +172,10 @@ class MainWindow(QMainWindow):
         self._charts_window = chartswindow.ChartsWindow(self._latest_id, title=self.ride_title.text() or "", parent=self)
         self._charts_window.setWindowModality(Qt.WindowModality.NonModal)
         self._charts_window.show()
+
+    def _open_fitness_chart(self):
+        if not self._latest_fitness:
+            return
+        self._fitness_chart_window = fitnesschartwindow.FitnessChartWindow(self._latest_fitness, parent=self)
+        self._fitness_chart_window.setWindowModality(Qt.WindowModality.NonModal)
+        self._fitness_chart_window.show()
