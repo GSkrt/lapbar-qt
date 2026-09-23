@@ -73,13 +73,18 @@ entirely — everything else carries over as a standard, always-a-window `QMainW
   `QTextBrowser.setSearchPaths(["docs"])` finds `screenshots/popup-guide.png` etc. from the file's own relative
   `![...](screenshots/...)` paths with no path-rewriting. Two calls (`setSearchPaths`, `setMarkdown`) and the
   guide is done; nothing here needs building from scratch.
+- **Background refresh: a `QObject` worker moved to a persistent `QThread`.** Verified, not assumed: a worker
+  with a `fetch()` slot doing a simulated 2-second blocking call (standing in for the real HTTP fetch) was moved
+  to its own `QThread`, while the main thread ticked a counter every 100 ms — it ticked 20 times during the
+  2-second "fetch," proving the UI thread never froze. The result signal landed back on the main thread
+  automatically (Qt queues a cross-thread signal to the receiver's own thread with no extra plumbing), so the
+  UI just connects to it normally. Shape: one worker `QObject` holding the fetch logic, started once and kept
+  alive (not spun up per refresh), driven by a `QTimer` living on that same worker thread for the interval,
+  emitting a signal with the result. Not built into the app yet, just the pattern confirmed to work.
 
 ## Real open questions this plan doesn't answer yet
 
-- **Background refresh.** With the backend now in-process (no more subprocess-and-parse-JSON boundary to
-  `bin/lapbar`), a periodic refresh must not block the Qt event loop — needs a worker thread (`QThread`, or a
-  plain background thread posting results back via a Qt signal) rather than calling the network-blocking fetch
-  logic directly on the UI thread. Not built yet.
+None left — everything above was either decided up front or resolved by verifying it directly.
 
 ## Suggested build order, for whenever this starts
 
