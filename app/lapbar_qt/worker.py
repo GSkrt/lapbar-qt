@@ -11,6 +11,7 @@ REFRESH_INTERVAL_MS = 15 * 60 * 1000  # matches LapBar's own documented default 
 
 class FetchWorker(QObject):
     tooltipReady = pyqtSignal(str)
+    summaryReady = pyqtSignal(dict)  # the raw fetch result, for anything that needs more than the tooltip text
     needsSetup = pyqtSignal()  # emitted once, the first time a fetch reports no (or no longer valid) credentials
 
     def __init__(self):
@@ -44,9 +45,10 @@ class FetchWorker(QObject):
         self._setup_signalled = False  # a later successful fetch means credentials are good again
         self._last_summary = result
         self.tooltipReady.emit(tooltip.build_tooltip(result))
+        self.summaryReady.emit(result)
 
 
-def start_background_refresh(on_tooltip, on_needs_setup=None) -> tuple[QThread, FetchWorker]:
+def start_background_refresh(on_tooltip, on_needs_setup=None, on_summary=None) -> tuple[QThread, FetchWorker]:
     """Owns the thread's lifetime; caller keeps the returned objects alive (e.g. as attributes on the tray)."""
     thread = QThread()
     worker = FetchWorker()
@@ -54,6 +56,8 @@ def start_background_refresh(on_tooltip, on_needs_setup=None) -> tuple[QThread, 
     worker.tooltipReady.connect(on_tooltip)
     if on_needs_setup:
         worker.needsSetup.connect(on_needs_setup)
+    if on_summary:
+        worker.summaryReady.connect(on_summary)
     thread.started.connect(worker.start)
     thread.start()
     return thread, worker
