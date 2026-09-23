@@ -1,10 +1,7 @@
-# lapbar-qt (working name)
+# lapbar-qt
 
 A standalone, PyQt6 sibling of [LapBar](https://github.com/GSkrt/lapbar): a system tray icon instead of an Omarchy
 bar widget, aimed at every mainstream distro (not only Arch/pacman, not tied to Omarchy or Quickshell at all).
-
-**The name is a placeholder.** LapBar itself went through three names before settling; this one hasn't been
-decided at all yet.
 
 ## Where this stands
 
