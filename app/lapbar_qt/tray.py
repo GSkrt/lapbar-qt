@@ -1,12 +1,11 @@
-"""Build-order step 2: the tray tooltip now carries real backend data, refreshed on a timer via a
-background thread (see worker.py) so the fetch never blocks the tray icon or its menu. Also wires up the
-first-run credentials wizard (setup_wizard.py): offered from the menu always, and popped automatically the
-first time a fetch reports there is nothing set up yet, so a non-technical user isn't left staring at a
-tooltip with no idea what to do.
+"""Build-order step 3: the right-click menu gets real actions -- refresh now, and mute/unmute kudos and
+comment alerts -- alongside the tooltip (step 2) and the first-run credentials wizard (setup_wizard.py),
+offered from the menu always and popped automatically the first time a fetch reports nothing is set up yet.
 """
 import sys
 from pathlib import Path
 
+from lapbar import mute
 from PyQt6.QtCore import QMetaObject, Qt
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
@@ -34,6 +33,23 @@ def main() -> int:
         # onto that thread instead of running it here, the same cross-thread pattern QThread signals use.
         if setup_wizard.run_setup_wizard():
             QMetaObject.invokeMethod(fetch_worker, "fetch", Qt.ConnectionType.QueuedConnection)
+
+    def refresh_now():
+        QMetaObject.invokeMethod(fetch_worker, "fetch", Qt.ConnectionType.QueuedConnection)
+
+    refresh_action = QAction("Refresh now", menu)
+    refresh_action.triggered.connect(refresh_now)
+    menu.addAction(refresh_action)
+
+    # mute.is_muted()/set_muted() are just a flag-file check, safe to call straight from the GUI thread --
+    # unlike the fetch, there is no network call here that would need a background thread.
+    mute_action = QAction("Mute kudos and comment alerts", menu)
+    mute_action.setCheckable(True)
+    menu.aboutToShow.connect(lambda: mute_action.setChecked(mute.is_muted()))
+    mute_action.triggered.connect(lambda checked: mute.set_muted(checked))
+    menu.addAction(mute_action)
+
+    menu.addSeparator()
 
     setup_action = QAction("Set up credentials…", menu)
     setup_action.triggered.connect(open_setup)
