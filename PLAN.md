@@ -66,6 +66,13 @@ entirely — everything else carries over as a standard, always-a-window `QMainW
   `actions` needs a plain string array (`as`) — both need building through `QDBusArgument` with an explicit
   `QMetaType` id rather than passed as bare Python values. This is a marshaling detail to get right when this
   gets built, not a reason to avoid the approach — the interaction itself, replacing `notify-send -A`, works.
+- **How-to window: `QTextBrowser` rendering `docs/help.md` as-is**, no porting and no separate renderer needed.
+  Verified, not assumed: loaded the real file into a real `QTextBrowser` and confirmed Qt's built-in Markdown
+  importer (`setMarkdown()`) renders all of it correctly, including the three GFM tables (`| Frame | Looks like
+  |...`) as real HTML tables and the bold/heading/list formatting throughout. The screenshots resolve too —
+  `QTextBrowser.setSearchPaths(["docs"])` finds `screenshots/popup-guide.png` etc. from the file's own relative
+  `![...](screenshots/...)` paths with no path-rewriting. Two calls (`setSearchPaths`, `setMarkdown`) and the
+  guide is done; nothing here needs building from scratch.
 
 ## Real open questions this plan doesn't answer yet
 
@@ -73,8 +80,6 @@ entirely — everything else carries over as a standard, always-a-window `QMainW
   `bin/lapbar`), a periodic refresh must not block the Qt event loop — needs a worker thread (`QThread`, or a
   plain background thread posting results back via a Qt signal) rather than calling the network-blocking fetch
   logic directly on the UI thread. Not built yet.
-- **How-to window.** Porting `help/shell.qml`'s markdown-and-pictures rendering is real work for arguably little
-  gain when a `QTextBrowser` pointed at the README, or just opening the README link, might be enough. Undecided.
 
 ## Suggested build order, for whenever this starts
 
