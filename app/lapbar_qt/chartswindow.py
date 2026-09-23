@@ -8,6 +8,8 @@ Panel.qml's chart window also has keyboard stepping (arrows, +/- to zoom, R to r
 close); PyQtGraph's own mouse interactions (drag to pan, scroll to zoom, double-click to reset) cover the
 core of that for free and are what this first pass relies on -- the keyboard/table layer is a later pass.
 """
+import bisect
+
 import pyqtgraph as pg
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout
@@ -15,6 +17,16 @@ from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout
 from . import fetcher
 
 pg.setConfigOptions(antialias=True)
+
+
+def _fmt_value(value, series: dict) -> str:
+    if value is None:
+        return "—"
+    if series["format"] == "pace":
+        total = int(round(value))
+        return f"{total // 60}:{total % 60:02d} {series['unit']}"
+    decimals = series.get("decimals", 0)
+    return f"{value:.{decimals}f} {series['unit']}" if decimals else f"{round(value)} {series['unit']}"
 
 
 class _ChartWorker(QObject):
@@ -46,12 +58,19 @@ class ChartsWindow(QDialog):
         self._toggles_row = QHBoxLayout()
         layout.addLayout(self._toggles_row)
 
+        # "Right: the values for the day under the cursor" (docs/help.md) -- updated on every crosshair move.
+        self.readout = QLabel("")
+        self.readout.setWordWrap(True)
+        layout.addWidget(self.readout)
+
         self._plot_widget = pg.GraphicsLayoutWidget()
         self._plot_widget.hide()
         layout.addWidget(self._plot_widget)
 
         self._plots: list = []
         self._vlines: list = []
+        self._x: list = []
+        self._series: list = []
 
         self._thread = QThread()
         self._worker = _ChartWorker(activity_id)
@@ -82,6 +101,8 @@ class ChartsWindow(QDialog):
         x = data["x"]["values"]
         x_label = f"{data['x']['label']} ({data['x']['unit']})"
         series = data["series"]
+        self._x = x
+        self._series = series
 
         first_plot = None
         for i, s in enumerate(series):
@@ -121,4 +142,19 @@ class ChartsWindow(QDialog):
                 x_val = plot.vb.mapSceneToView(pos).x()
                 for vline in self._vlines:
                     vline.setPos(x_val)
+                self._update_readout(x_val)
                 return
+
+    def _nearest_index(self, x_val: float) -> int:
+        idx = bisect.bisect_left(self._x, x_val)
+        idx = max(0, min(idx, len(self._x) - 1))
+        if idx > 0 and abs(self._x[idx - 1] - x_val) < abs(self._x[idx] - x_val):
+            idx -= 1
+        return idx
+
+    def _update_readout(self, x_val: float):
+        if not self._x:
+            return
+        idx = self._nearest_index(x_val)
+        parts = [f"{s['label']}: {_fmt_value(s['values'][idx], s)}" for s in self._series]
+        self.readout.setText("   ".join(parts))

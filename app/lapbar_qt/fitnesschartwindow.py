@@ -4,6 +4,7 @@ PLAN.md's "same charts window, fed the fitness doc". No separate fetch: the fitn
 of the regular refresh (fetcher.fetch_summary()), so this window is built directly from the already-fetched
 summary, no background thread needed.
 """
+import bisect
 from datetime import datetime, timezone
 
 import pyqtgraph as pg
@@ -38,6 +39,13 @@ class FitnessChartWindow(QDialog):
 
         toggles_row = QHBoxLayout()
         layout.addLayout(toggles_row)
+
+        # "Right: the values for the day under the cursor" (docs/help.md) -- updated on every crosshair move.
+        self.readout = QLabel("")
+        self.readout.setWordWrap(True)
+        layout.addWidget(self.readout)
+        self._x = x
+        self._days = days
 
         plot_widget = pg.GraphicsLayoutWidget()
         layout.addWidget(plot_widget)
@@ -99,4 +107,14 @@ class FitnessChartWindow(QDialog):
                 x_val = plot.vb.mapSceneToView(pos).x()
                 for vline in self._vlines:
                     vline.setPos(x_val)
+                self._update_readout(x_val)
                 return
+
+    def _update_readout(self, x_val: float):
+        idx = bisect.bisect_left(self._x, x_val)
+        idx = max(0, min(idx, len(self._x) - 1))
+        if idx > 0 and abs(self._x[idx - 1] - x_val) < abs(self._x[idx] - x_val):
+            idx -= 1
+        day = self._days[idx]
+        self.readout.setText(f"{day['date']}   Fitness: {round(day['fitness'])}   Fatigue: {round(day['fatigue'])}   "
+                             f"Form: {round(day['form'])}   Load: {round(day['load'])}")
