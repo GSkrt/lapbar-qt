@@ -184,6 +184,12 @@ class SignInPage(QWizardPage):
         self._worker = _AuthWorker(self.field("client_id"), self.field("client_secret"))
         self._worker.moveToThread(self._thread)
         self._worker.finished.connect(self._on_finished)
+        # DirectConnection: quit() is thread-safe, so this runs it synchronously on the worker thread right
+        # where finished.emit() happens, rather than waiting for the main thread's event loop (a
+        # QueuedConnection, since self._thread lives on the main thread) -- otherwise, closing the wizard
+        # before that queued call is ever processed destroys a QThread Qt still considers "running", which
+        # aborts the whole process, e.g. if the user closes the window while authorize() is still waiting.
+        self._worker.finished.connect(self._thread.quit, Qt.ConnectionType.DirectConnection)
         self._worker.urlReady.connect(self._on_url)
         self._thread.started.connect(self._worker.run)
         self._thread.start()

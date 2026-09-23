@@ -22,3 +22,16 @@ def fetch_summary(*, manual: bool = False) -> dict:
     if not output:
         return {"error": "unexpected", "message": "No output from fetch"}
     return json.loads(output)
+
+
+def details_for(activity_id: int) -> dict:
+    """Records (PRs, KOMs), who gave kudos, and comments for one activity -- reuses cli.cmd_details the
+    same way fetch_summary() reuses cmd_fetch."""
+    args = argparse.Namespace(activity=activity_id)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        cli.cmd_details(args)
+    output = buf.getvalue().strip()
+    if not output:
+        return {"error": "unexpected", "message": "No output from details"}
+    return json.loads(output)

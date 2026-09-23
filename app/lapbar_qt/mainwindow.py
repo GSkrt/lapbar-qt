@@ -3,10 +3,10 @@ popup content, minus the ⋮ menu (moved to the tray's right-click already) and 
 concept entirely (PLAN.md's "The main window" section). Route trace, the calendar, and any interactive
 controls (Open chart, skip-today, the quotes radio) are later steps; this is the read-only text content.
 """
-from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLabel, QMainWindow, QVBoxLayout, QWidget
 
-from . import tooltip
+from . import detailswindow, tooltip
 
 
 def _stat_cells(latest: dict) -> list[tuple[str, str]]:
@@ -58,8 +58,14 @@ class MainWindow(QMainWindow):
         self.ride_title.setFont(title_font)
         layout.addWidget(self.ride_title)
 
+        # A link, not plain text: clicking it opens the details window (comments, records, kudos) for the
+        # ride currently shown -- linkActivated fires on click without actually opening a URL.
         self.kudos_line = QLabel("")
+        self.kudos_line.setTextFormat(Qt.TextFormat.RichText)
+        self.kudos_line.linkActivated.connect(self._open_details)
         layout.addWidget(self.kudos_line)
+        self._latest_id: int | None = None
+        self._details_window: detailswindow.DetailsWindow | None = None
 
         self.stats_box = QGroupBox("This ride")
         self.stats_layout = QGridLayout(self.stats_box)
@@ -95,6 +101,7 @@ class MainWindow(QMainWindow):
     @pyqtSlot(dict)
     def update_summary(self, summary: dict):
         latest = summary.get("latest") or {}
+        self._latest_id = latest.get("id")
         if latest.get("name"):
             self.ride_title.setText(f"{latest['name']}  ·  {tooltip.sport_name(latest.get('sport'))}")
         else:
@@ -102,9 +109,9 @@ class MainWindow(QMainWindow):
 
         if latest:
             kudos, prs, comments = latest.get("kudos", 0), latest.get("prs", 0), latest.get("comments", 0)
-            self.kudos_line.setText(
-                f"{kudos} {'kudo' if kudos == 1 else 'kudos'}  ·  {prs} {'PR' if prs == 1 else 'PRs'}  ·  "
-                f"{comments} {'comment' if comments == 1 else 'comments'}")
+            text = (f"{kudos} {'kudo' if kudos == 1 else 'kudos'}  ·  {prs} {'PR' if prs == 1 else 'PRs'}  ·  "
+                    f"{comments} {'comment' if comments == 1 else 'comments'}")
+            self.kudos_line.setText(f'<a href="details" style="color: inherit; text-decoration: underline;">{text}</a>')
         else:
             self.kudos_line.setText("")
 
@@ -133,3 +140,10 @@ class MainWindow(QMainWindow):
 
         for period in ("today", "week", "month", "year"):
             self.totals_labels[period].setText(_totals_line(summary.get(period)))
+
+    def _open_details(self, _link: str):
+        if self._latest_id is None:
+            return
+        self._details_window = detailswindow.DetailsWindow(self._latest_id, title=self.ride_title.text() or "", parent=self)
+        self._details_window.setWindowModality(Qt.WindowModality.NonModal)
+        self._details_window.show()
