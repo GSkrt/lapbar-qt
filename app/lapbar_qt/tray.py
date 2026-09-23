@@ -1,7 +1,7 @@
-"""Build-order step 6: the FTP, refresh-interval and reset-account dialogs, alongside everything the menu
-already had (step 3), the main window (step 4), the details window (step 5), the tooltip (step 2), and the
-first-run credentials wizard (setup_wizard.py), offered from the menu always and popped automatically the
-first time a fetch reports nothing is set up yet.
+"""Build-order step 7: the data window (datawindow.py), built on manage.status(), alongside everything the
+menu already had (steps 3 and 6), the main window (step 4), the details window (step 5), the tooltip
+(step 2), and the first-run credentials wizard (setup_wizard.py), offered from the menu always and popped
+automatically the first time a fetch reports nothing is set up yet.
 """
 import sys
 
@@ -10,7 +10,7 @@ from PyQt6.QtCore import QMetaObject, Q_ARG, Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox, QStyle, QSystemTrayIcon
 
-from . import mainwindow, settings_dialogs, setup_wizard, worker
+from . import datawindow, mainwindow, settings_dialogs, setup_wizard, worker
 
 
 def main() -> int:
@@ -71,6 +71,15 @@ def main() -> int:
             QMetaObject.invokeMethod(fetch_worker, "set_interval", Qt.ConnectionType.QueuedConnection,
                                      Q_ARG(int, dialog.chosen))
 
+    data_window = None
+
+    def open_data_window():
+        nonlocal data_window
+        data_window = datawindow.DataWindow()
+        data_window.show()
+        data_window.raise_()
+        data_window.activateWindow()
+
     def open_reset_dialog():
         confirmed = QMessageBox.question(
             None, "Reset account",
@@ -101,6 +110,10 @@ def main() -> int:
     ftp_action = QAction("FTP…", menu)
     ftp_action.triggered.connect(open_ftp_dialog)
     menu.addAction(ftp_action)
+
+    data_action = QAction("Manage data…", menu)
+    data_action.triggered.connect(open_data_window)
+    menu.addAction(data_action)
 
     menu.addSeparator()
 
