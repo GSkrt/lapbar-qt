@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 import pyqtgraph as pg
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from . import chartlegend
+
 pg.setConfigOptions(antialias=True)
 
 FRESH_GREEN = (76, 175, 80)
@@ -55,20 +57,34 @@ class FitnessChartWindow(QDialog):
         body.addWidget(plot_widget, stretch=1)
 
         # "Right: the values for the day under the cursor" (docs/help.md), its own panel, each line colored
-        # to match its plot -- updated on every crosshair move. Form's color flips with its sign.
+        # to match its plot -- updated on every crosshair move. Form's color flips with its sign. Rows get
+        # equal stretch (four measures here, always) and fonts scaled the same way as chartswindow.py.
         values_panel = QWidget()
-        values_panel.setFixedWidth(160)
+        values_panel.setFixedWidth(200)
         values_layout = QVBoxLayout(values_panel)
-        self.value_labels = {
-            "Fitness": QLabel("Fitness: —"), "Fatigue": QLabel("Fatigue: —"),
-            "Form": QLabel("Form: —"), "Load": QLabel("Load: —"),
+        values_layout.setSpacing(0)
+        row_height = self.height() / 4
+        value_pt, name_pt, minmax_pt = chartlegend.font_sizes_for(row_height)
+
+        fitness_vals = [d["fitness"] for d in days]
+        fatigue_vals = [d["fatigue"] for d in days]
+        form_vals = [d["form"] for d in days]
+        load_vals = [d["load"] for d in days]
+
+        self.value_rows = {
+            "Fitness": chartlegend.ValueRow("Fitness", FITNESS_BLUE),
+            "Fatigue": chartlegend.ValueRow("Fatigue", FATIGUE_ORANGE),
+            "Form": chartlegend.ValueRow("Form", FRESH_GREEN_HEX),
+            "Load": chartlegend.ValueRow("Load", LOAD_GRAY),
         }
-        self.value_labels["Fitness"].setStyleSheet(f"color: {FITNESS_BLUE}; font-weight: bold;")
-        self.value_labels["Fatigue"].setStyleSheet(f"color: {FATIGUE_ORANGE}; font-weight: bold;")
-        self.value_labels["Load"].setStyleSheet(f"color: {LOAD_GRAY}; font-weight: bold;")
+        self.value_rows["Fitness"].minmax_label.setText(f"min {min(fitness_vals):.0f}  ·  max {max(fitness_vals):.0f}")
+        self.value_rows["Fatigue"].minmax_label.setText(f"min {min(fatigue_vals):.0f}  ·  max {max(fatigue_vals):.0f}")
+        self.value_rows["Form"].minmax_label.setText(f"min {min(form_vals):.0f}  ·  max {max(form_vals):.0f}")
+        self.value_rows["Load"].minmax_label.setText(f"min {min(load_vals):.0f}  ·  max {max(load_vals):.0f}")
         for name in ("Fitness", "Fatigue", "Form", "Load"):
-            values_layout.addWidget(self.value_labels[name])
-        values_layout.addStretch(1)
+            row = self.value_rows[name]
+            row.set_scale(value_pt, name_pt, minmax_pt)
+            values_layout.addWidget(row, stretch=1)
         body.addWidget(values_panel)
 
         top = plot_widget.addPlot(row=0, col=0, axisItems={"bottom": pg.DateAxisItem()})
@@ -137,9 +153,10 @@ class FitnessChartWindow(QDialog):
         if idx > 0 and abs(self._x[idx - 1] - x_val) < abs(self._x[idx] - x_val):
             idx -= 1
         day = self._days[idx]
-        self.value_labels["Fitness"].setText(f"Fitness: {round(day['fitness'])}")
-        self.value_labels["Fatigue"].setText(f"Fatigue: {round(day['fatigue'])}")
-        self.value_labels["Load"].setText(f"Load: {round(day['load'])}")
-        form_color = FRESH_GREEN_HEX if day["form"] >= 0 else TIRED_ORANGE_HEX
-        self.value_labels["Form"].setText(f"{day['date']}\nForm: {round(day['form'])}")
-        self.value_labels["Form"].setStyleSheet(f"color: {form_color}; font-weight: bold;")
+        self.value_rows["Fitness"].value_label.setText(str(round(day["fitness"])))
+        self.value_rows["Fatigue"].value_label.setText(str(round(day["fatigue"])))
+        self.value_rows["Load"].value_label.setText(str(round(day["load"])))
+        form_row = self.value_rows["Form"]
+        form_row.name_label.setText(f"Form · {day['date']}")
+        form_row.value_label.setText(str(round(day["form"])))
+        form_row.set_color(FRESH_GREEN_HEX if day["form"] >= 0 else TIRED_ORANGE_HEX)

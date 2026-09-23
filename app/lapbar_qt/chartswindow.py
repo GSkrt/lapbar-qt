@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from . import fetcher
+from . import chartlegend, fetcher
 
 pg.setConfigOptions(antialias=True)
 
@@ -27,6 +27,13 @@ def _fmt_value(value, series: dict) -> str:
         return f"{total // 60}:{total % 60:02d} {series['unit']}"
     decimals = series.get("decimals", 0)
     return f"{value:.{decimals}f} {series['unit']}" if decimals else f"{round(value)} {series['unit']}"
+
+
+def _min_max_text(values: list, series: dict) -> str:
+    present = [v for v in values if v is not None]
+    if not present:
+        return ""
+    return f"min {_fmt_value(min(present), series)}  ·  max {_fmt_value(max(present), series)}"
 
 
 class _ChartWorker(QObject):
@@ -68,11 +75,11 @@ class ChartsWindow(QDialog):
         # "Right: the values for the day under the cursor" (docs/help.md), its own panel, each line colored
         # to match its plot -- updated on every crosshair move.
         self._values_panel = QWidget()
-        self._values_panel.setFixedWidth(160)
+        self._values_panel.setFixedWidth(200)
         self._values_layout = QVBoxLayout(self._values_panel)
-        self._values_layout.addStretch(1)
+        self._values_layout.setSpacing(0)
         body.addWidget(self._values_panel)
-        self.value_labels: dict[str, QLabel] = {}
+        self.value_rows: dict[str, chartlegend.ValueRow] = {}
 
         self._plots: list = []
         self._vlines: list = []
@@ -111,6 +118,12 @@ class ChartsWindow(QDialog):
         self._x = x
         self._series = series
 
+        # Divide the values panel's height by the number of measures, same as the plots divide their own
+        # column (charts/shell.qml's panelH), and scale the fonts to that -- a lone measure gets a big
+        # number, seven of them get smaller ones that still comfortably out-size the plot axis text.
+        row_height = self.height() / max(len(series), 1)
+        value_pt, name_pt, minmax_pt = chartlegend.font_sizes_for(row_height)
+
         first_plot = None
         for i, s in enumerate(series):
             color = pg.intColor(i, hues=max(len(series), 1))
@@ -141,10 +154,11 @@ class ChartsWindow(QDialog):
             checkbox.toggled.connect(lambda checked, p=plot: p.setVisible(checked))
             self._toggles_row.addWidget(checkbox)
 
-            value_label = QLabel(f"{s['label']}: —")
-            value_label.setStyleSheet(f"color: {color.name()}; font-weight: bold;")
-            self._values_layout.insertWidget(self._values_layout.count() - 1, value_label)
-            self.value_labels[s["key"]] = value_label
+            row = chartlegend.ValueRow(s["label"], color.name())
+            row.set_scale(value_pt, name_pt, minmax_pt)
+            row.minmax_label.setText(_min_max_text(s["values"], s))
+            self._values_layout.addWidget(row, stretch=1)
+            self.value_rows[s["key"]] = row
 
         if self._plots:
             self._plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)
@@ -170,4 +184,4 @@ class ChartsWindow(QDialog):
             return
         idx = self._nearest_index(x_val)
         for s in self._series:
-            self.value_labels[s["key"]].setText(f"{s['label']}: {_fmt_value(s['values'][idx], s)}")
+            self.value_rows[s["key"]].value_label.setText(_fmt_value(s["values"][idx], s))
