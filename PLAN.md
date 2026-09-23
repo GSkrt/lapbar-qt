@@ -38,18 +38,26 @@ entirely — everything else carries over as a standard, always-a-window `QMainW
 | Today (Omarchy/Quickshell) | Here |
 |---|---|
 | `activity/shell.qml` (details) | a details window: comments, records, kudos |
-| `charts/shell.qml` (ride charts) | a charts window — **needs real design work**, see below |
+| `charts/shell.qml` (ride charts) | a charts window, built on **PyQtGraph** — see Decided below |
 | `charts/shell.qml` (fitness chart, same window/different doc) | same charts window, fed the fitness doc |
 | `manage/shell.qml` (data window) | a data window, built on `manage.status()`, already carried over |
 | `help/shell.qml` (how-to) | undecided: port the guide-rendering window, or just link the README |
 | the FTP / interval / reset submenus in Panel.qml's menu | small dialogs, opened from the tray's right-click menu |
 
+## Decided
+
+- **Charts: PyQtGraph** (`python-pyqtgraph`, available via pacman/`extra`, MIT-licensed, 0.14.0 confirmed
+  installable and working on this machine). Its built-in downsampling (`setDownsampling(method='peak')`, the
+  library's own default) is the same min/max-per-pixel-column technique `charts/logic.js` was hand-built around
+  this session for the Quickshell version — verified, not assumed: fed it a synthetic 2,000,000-sample series
+  with a single-sample spike, and a fully-zoomed-out render took 14 ms and still showed the spike (6,370 points
+  on screen for the real-ride-scale 19,113-sample case, 2.2 ms). Multiple linked, shared-cursor plots (the
+  elevation/speed/heart-rate/power stack) are a native PyQtGraph pattern (`setXLink()`, `InfiniteLine` for the
+  crosshair), not something to build from scratch the way the Quickshell canvas version was. Replaces the
+  hand-rolled `QPainter`-vs-`QtCharts` dilemma this plan started with.
+
 ## Real open questions this plan doesn't answer yet
 
-- **Charts.** Quickshell's chart window has real logic behind it (`charts/logic.js`'s level-of-detail
-  reduction, the shared-cursor crosshair, the table view) that was never ported — none of that exists here yet.
-  Worth deciding: hand-rolled `QPainter` drawing (closest to what exists today, most control) vs `QtCharts` (less
-  code, less control over the exact zoomed-out real-sample-reduction behaviour LapBar relies on for long rides).
 - **Notifications.** `QSystemTrayIcon.showMessage()` is the native, cross-desktop way to show a popup, and could
   replace shelling out to `notify-send`. It does **not** support the excuse buttons the coach's notifications
   carry today (`-A key=label`) — that needs either a direct `org.freedesktop.Notifications` D-Bus call (what
@@ -71,6 +79,6 @@ entirely — everything else carries over as a standard, always-a-window `QMainW
 5. The details window, opened from the main window's summary line.
 6. The FTP / interval / reset dialogs.
 7. The data window.
-8. Charts (once the design question above is settled).
+8. Charts, on PyQtGraph.
 9. Notifications (kudos, comments, the coach).
 10. Packaging: AUR/pacman, then Flatpak.
