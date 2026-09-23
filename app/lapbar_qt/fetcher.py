@@ -10,11 +10,11 @@ import contextlib
 import io
 import json
 
-from lapbar import cli
+from lapbar import cli, prefs
 
 
 def fetch_summary(*, manual: bool = False) -> dict:
-    args = argparse.Namespace(manual=manual, backfill=3, ftp=0, history_years=0, print=True)
+    args = argparse.Namespace(manual=manual, backfill=3, ftp=prefs.load()["ftp"], history_years=0, print=True)
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         cli.cmd_fetch(args)

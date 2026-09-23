@@ -1,16 +1,16 @@
-"""Build-order step 4: left-click toggles the main window (mainwindow.py), read-only, with real fetched
-data -- alongside the tooltip (step 2), the right-click menu's real actions (step 3), and the first-run
-credentials wizard (setup_wizard.py), offered from the menu always and popped automatically the first time
-a fetch reports nothing is set up yet.
+"""Build-order step 6: the FTP, refresh-interval and reset-account dialogs, alongside everything the menu
+already had (step 3), the main window (step 4), the details window (step 5), the tooltip (step 2), and the
+first-run credentials wizard (setup_wizard.py), offered from the menu always and popped automatically the
+first time a fetch reports nothing is set up yet.
 """
 import sys
 
-from lapbar import mute
-from PyQt6.QtCore import QMetaObject, Qt
+from lapbar import mute, prefs, setup
+from PyQt6.QtCore import QMetaObject, Q_ARG, Qt
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox, QStyle, QSystemTrayIcon
 
-from . import mainwindow, setup_wizard, worker
+from . import mainwindow, settings_dialogs, setup_wizard, worker
 
 
 def main() -> int:
@@ -42,6 +42,12 @@ def main() -> int:
 
     menu = QMenu()
 
+    last_summary: dict = {}
+
+    def track_summary(summary: dict):
+        last_summary.clear()
+        last_summary.update(summary)
+
     def open_setup():
         # fetch() is a @pyqtSlot on a worker living on the background thread; invokeMethod queues this call
         # onto that thread instead of running it here, the same cross-thread pattern QThread signals use.
@@ -50,6 +56,31 @@ def main() -> int:
 
     def refresh_now():
         QMetaObject.invokeMethod(fetch_worker, "fetch", Qt.ConnectionType.QueuedConnection)
+
+    def open_ftp_dialog():
+        estimate = (last_summary.get("fitness") or {}).get("ftp_estimate")
+        dialog = settings_dialogs.FtpDialog(prefs.load()["ftp"], estimate)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            prefs.update(ftp=dialog.spin.value())
+            refresh_now()  # recalculates load/fitness at once with the new value, same as Panel.qml's setFtp()
+
+    def open_interval_dialog():
+        dialog = settings_dialogs.IntervalDialog(prefs.load()["refresh_interval_sec"])
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            prefs.update(refresh_interval_sec=dialog.chosen)
+            QMetaObject.invokeMethod(fetch_worker, "set_interval", Qt.ConnectionType.QueuedConnection,
+                                     Q_ARG(int, dialog.chosen))
+
+    def open_reset_dialog():
+        confirmed = QMessageBox.question(
+            None, "Reset account",
+            "This removes your saved credentials and sign-in. Your downloaded activities stay. Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if confirmed != QMessageBox.StandardButton.Yes:
+            return
+        removed = setup.forget(out=lambda *_: None)
+        QMessageBox.information(None, "Reset account", "Removed: " + (", ".join(removed) or "nothing"))
+        refresh_now()
 
     refresh_action = QAction("Refresh now", menu)
     refresh_action.triggered.connect(refresh_now)
@@ -63,11 +94,23 @@ def main() -> int:
     mute_action.triggered.connect(lambda checked: mute.set_muted(checked))
     menu.addAction(mute_action)
 
+    interval_action = QAction("Refresh every…", menu)
+    interval_action.triggered.connect(open_interval_dialog)
+    menu.addAction(interval_action)
+
+    ftp_action = QAction("FTP…", menu)
+    ftp_action.triggered.connect(open_ftp_dialog)
+    menu.addAction(ftp_action)
+
     menu.addSeparator()
 
     setup_action = QAction("Set up credentials…", menu)
     setup_action.triggered.connect(open_setup)
     menu.addAction(setup_action)
+
+    reset_action = QAction("Reset account…", menu)
+    reset_action.triggered.connect(open_reset_dialog)
+    menu.addAction(reset_action)
 
     menu.addSeparator()
 
@@ -77,6 +120,7 @@ def main() -> int:
     tray.setContextMenu(menu)
 
     thread, fetch_worker = worker.start_background_refresh(tray.setToolTip, open_setup, main_window.update_summary)
+    fetch_worker.summaryReady.connect(track_summary)
 
     def shutdown():
         thread.quit()

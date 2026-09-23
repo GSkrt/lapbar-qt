@@ -4,9 +4,9 @@ thread as an ordinary signal -- Qt queues it across threads automatically, so no
 """
 from PyQt6.QtCore import QObject, QThread, QTimer, pyqtSignal, pyqtSlot
 
-from . import fetcher, tooltip
+from lapbar import prefs
 
-REFRESH_INTERVAL_MS = 15 * 60 * 1000  # matches LapBar's own documented default (docs/help.md: "default 15 minutes")
+from . import fetcher, tooltip
 
 
 class FetchWorker(QObject):
@@ -25,8 +25,13 @@ class FetchWorker(QObject):
         # moveToThread() must happen before this, or the timer would fire on the wrong thread.
         self._timer = QTimer()
         self._timer.timeout.connect(self.fetch)
-        self._timer.start(REFRESH_INTERVAL_MS)
+        self._timer.start(prefs.load()["refresh_interval_sec"] * 1000)
         self.fetch()
+
+    @pyqtSlot(int)
+    def set_interval(self, seconds: int):
+        if self._timer is not None:
+            self._timer.setInterval(seconds * 1000)
 
     @pyqtSlot()
     def fetch(self):

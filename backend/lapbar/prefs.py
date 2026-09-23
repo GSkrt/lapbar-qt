@@ -9,6 +9,13 @@ command line and the data window.
   coach_random_per_day  at most this many random pushes a day (0 to 12)
   quiet_hours        no notifications between these times, "HH:MM-HH:MM" (the coach only)
   coach_pause_until  the coach says nothing until this day (illness, injury, holiday, a planned break), or None
+  ftp                cycling FTP in watts (0 = unknown); makes power-based training load more accurate
+  refresh_interval_sec  how often the background refresh runs, in seconds (minimum 60)
+
+`ftp` and `refresh_interval_sec` live here rather than in a widget setting, unlike LapBar's Omarchy version
+(Panel.qml's own `setting("ftp", ...)` / `setting("refreshIntervalSec", ...)`): lapbar-qt has no per-widget
+settings store to put them in, and both are read by the backend fetch itself (`strava.fetch(ftp=...)`,
+the worker's refresh timer), which is exactly the kind of cross-cutting value this module already exists for.
 
 Stored in ~/.config/lapbar/prefs.json (mode 600).
 """
@@ -20,7 +27,8 @@ from pathlib import Path
 from . import config
 
 DEFAULTS = {"history_from": None, "export_path": None, "export_continuous": False, "export_spatial": False,
-            "coach_tone": "off", "coach_random_per_day": 2, "quiet_hours": "22:00-08:00", "coach_pause_until": None}
+            "coach_tone": "off", "coach_random_per_day": 2, "quiet_hours": "22:00-08:00", "coach_pause_until": None,
+            "ftp": 0, "refresh_interval_sec": 900}
 
 
 def _path():
@@ -72,6 +80,10 @@ def update(**changes) -> dict:
                 raise ValueError("quiet hours look like 22:00-08:00") from None
         if key == "export_path":
             value = str(value).strip() or None
+        if key == "ftp":
+            value = max(0, min(600, int(value)))
+        if key == "refresh_interval_sec":
+            value = max(60, int(value))
         data[key] = value if value != "" else None
     _save(data)
     return data
