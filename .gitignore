@@ -5,3 +5,7 @@ __pycache__/
 *.egg-info/
 uv.lock
 .pytest_cache/
+
+# My private working notes: not part of the repository.
+TODO.md
+TODO-archive.md
