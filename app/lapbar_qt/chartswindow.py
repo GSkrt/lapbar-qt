@@ -12,7 +12,7 @@ import bisect
 
 import pyqtgraph as pg
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
-from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from . import fetcher
 
@@ -49,23 +49,30 @@ class ChartsWindow(QDialog):
     def __init__(self, activity_id: int, title: str = "", parent=None):
         super().__init__(parent)
         self.setWindowTitle(title or "Ride charts")
-        self.resize(760, 640)
+        self.resize(880, 640)
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
         self.status = QLabel("Loading…")
-        layout.addWidget(self.status)
+        outer.addWidget(self.status)
 
         self._toggles_row = QHBoxLayout()
-        layout.addLayout(self._toggles_row)
+        outer.addLayout(self._toggles_row)
 
-        # "Right: the values for the day under the cursor" (docs/help.md) -- updated on every crosshair move.
-        self.readout = QLabel("")
-        self.readout.setWordWrap(True)
-        layout.addWidget(self.readout)
+        body = QHBoxLayout()
+        outer.addLayout(body)
 
         self._plot_widget = pg.GraphicsLayoutWidget()
         self._plot_widget.hide()
-        layout.addWidget(self._plot_widget)
+        body.addWidget(self._plot_widget, stretch=1)
+
+        # "Right: the values for the day under the cursor" (docs/help.md), its own panel, each line colored
+        # to match its plot -- updated on every crosshair move.
+        self._values_panel = QWidget()
+        self._values_panel.setFixedWidth(160)
+        self._values_layout = QVBoxLayout(self._values_panel)
+        self._values_layout.addStretch(1)
+        body.addWidget(self._values_panel)
+        self.value_labels: dict[str, QLabel] = {}
 
         self._plots: list = []
         self._vlines: list = []
@@ -106,6 +113,7 @@ class ChartsWindow(QDialog):
 
         first_plot = None
         for i, s in enumerate(series):
+            color = pg.intColor(i, hues=max(len(series), 1))
             plot = self._plot_widget.addPlot(row=i, col=0)
             plot.setLabel("left", s["label"], units=s["unit"])
             if i == len(series) - 1:
@@ -113,7 +121,7 @@ class ChartsWindow(QDialog):
             plot.showGrid(x=True, y=True, alpha=0.2)
 
             y = [v if v is not None else float("nan") for v in s["values"]]
-            curve = plot.plot(x, y, pen=pg.intColor(i, hues=max(len(series), 1)))
+            curve = plot.plot(x, y, pen=color)
             curve.setDownsampling(auto=True, method="peak")
             curve.setClipToView(True)
 
@@ -132,6 +140,11 @@ class ChartsWindow(QDialog):
             checkbox.setChecked(True)
             checkbox.toggled.connect(lambda checked, p=plot: p.setVisible(checked))
             self._toggles_row.addWidget(checkbox)
+
+            value_label = QLabel(f"{s['label']}: —")
+            value_label.setStyleSheet(f"color: {color.name()}; font-weight: bold;")
+            self._values_layout.insertWidget(self._values_layout.count() - 1, value_label)
+            self.value_labels[s["key"]] = value_label
 
         if self._plots:
             self._plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)
@@ -156,5 +169,5 @@ class ChartsWindow(QDialog):
         if not self._x:
             return
         idx = self._nearest_index(x_val)
-        parts = [f"{s['label']}: {_fmt_value(s['values'][idx], s)}" for s in self._series]
-        self.readout.setText("   ".join(parts))
+        for s in self._series:
+            self.value_labels[s["key"]].setText(f"{s['label']}: {_fmt_value(s['values'][idx], s)}")

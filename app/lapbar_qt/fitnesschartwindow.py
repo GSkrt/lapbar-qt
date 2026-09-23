@@ -8,12 +8,17 @@ import bisect
 from datetime import datetime, timezone
 
 import pyqtgraph as pg
-from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 pg.setConfigOptions(antialias=True)
 
 FRESH_GREEN = (76, 175, 80)
 TIRED_ORANGE = (255, 138, 76)
+FITNESS_BLUE = "#3987e5"
+FATIGUE_ORANGE = "#d95926"
+LOAD_GRAY = "#8c8c8c"
+FRESH_GREEN_HEX = "#4caf50"
+TIRED_ORANGE_HEX = "#ff8a4c"
 
 
 def _epoch(iso_date: str) -> float:
@@ -27,10 +32,10 @@ class FitnessChartWindow(QDialog):
         self.setWindowTitle("Fitness, fatigue and form")
         self.resize(760, 640)
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
         days = fitness.get("days") or []
         if not days:
-            layout.addWidget(QLabel("Not enough history yet: a few weeks of activity are needed."))
+            outer.addWidget(QLabel("Not enough history yet: a few weeks of activity are needed."))
             self._plots: list = []
             return
 
@@ -38,17 +43,33 @@ class FitnessChartWindow(QDialog):
         width = (x[1] - x[0]) * 0.8 if len(x) > 1 else 86400 * 0.8
 
         toggles_row = QHBoxLayout()
-        layout.addLayout(toggles_row)
+        outer.addLayout(toggles_row)
 
-        # "Right: the values for the day under the cursor" (docs/help.md) -- updated on every crosshair move.
-        self.readout = QLabel("")
-        self.readout.setWordWrap(True)
-        layout.addWidget(self.readout)
+        body = QHBoxLayout()
+        outer.addLayout(body)
+
         self._x = x
         self._days = days
 
         plot_widget = pg.GraphicsLayoutWidget()
-        layout.addWidget(plot_widget)
+        body.addWidget(plot_widget, stretch=1)
+
+        # "Right: the values for the day under the cursor" (docs/help.md), its own panel, each line colored
+        # to match its plot -- updated on every crosshair move. Form's color flips with its sign.
+        values_panel = QWidget()
+        values_panel.setFixedWidth(160)
+        values_layout = QVBoxLayout(values_panel)
+        self.value_labels = {
+            "Fitness": QLabel("Fitness: —"), "Fatigue": QLabel("Fatigue: —"),
+            "Form": QLabel("Form: —"), "Load": QLabel("Load: —"),
+        }
+        self.value_labels["Fitness"].setStyleSheet(f"color: {FITNESS_BLUE}; font-weight: bold;")
+        self.value_labels["Fatigue"].setStyleSheet(f"color: {FATIGUE_ORANGE}; font-weight: bold;")
+        self.value_labels["Load"].setStyleSheet(f"color: {LOAD_GRAY}; font-weight: bold;")
+        for name in ("Fitness", "Fatigue", "Form", "Load"):
+            values_layout.addWidget(self.value_labels[name])
+        values_layout.addStretch(1)
+        body.addWidget(values_panel)
 
         top = plot_widget.addPlot(row=0, col=0, axisItems={"bottom": pg.DateAxisItem()})
         top.setLabel("left", "Fitness / Fatigue")
@@ -116,5 +137,9 @@ class FitnessChartWindow(QDialog):
         if idx > 0 and abs(self._x[idx - 1] - x_val) < abs(self._x[idx] - x_val):
             idx -= 1
         day = self._days[idx]
-        self.readout.setText(f"{day['date']}   Fitness: {round(day['fitness'])}   Fatigue: {round(day['fatigue'])}   "
-                             f"Form: {round(day['form'])}   Load: {round(day['load'])}")
+        self.value_labels["Fitness"].setText(f"Fitness: {round(day['fitness'])}")
+        self.value_labels["Fatigue"].setText(f"Fatigue: {round(day['fatigue'])}")
+        self.value_labels["Load"].setText(f"Load: {round(day['load'])}")
+        form_color = FRESH_GREEN_HEX if day["form"] >= 0 else TIRED_ORANGE_HEX
+        self.value_labels["Form"].setText(f"{day['date']}\nForm: {round(day['form'])}")
+        self.value_labels["Form"].setStyleSheet(f"color: {form_color}; font-weight: bold;")
