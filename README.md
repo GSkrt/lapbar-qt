@@ -1,7 +1,7 @@
 # lapbar-qt (working name)
 
-A standalone, Qt-based sibling of [LapBar](https://github.com/GSkrt/lapbar), aimed at KDE and packaged for pacman
-(and, if it's worth it once this exists, other distros too) — not tied to Omarchy or Quickshell.
+A standalone, PyQt6 sibling of [LapBar](https://github.com/GSkrt/lapbar): a system tray icon instead of an Omarchy
+bar widget, aimed at every mainstream distro (not only Arch/pacman, not tied to Omarchy or Quickshell at all).
 
 **The name is a placeholder.** LapBar itself went through three names before settling; this one hasn't been
 decided at all yet.
@@ -25,20 +25,38 @@ it" — nothing to reuse) and `manage.py`'s `open_window()` (its `status()` data
 UI here will need its own equivalent of all four windows LapBar has — the popup, the ride charts, the fitness
 chart, the data window, the details window — built against whatever toolkit gets chosen, not this code.
 
-## Open decisions
+## Decided
 
-Nothing below is decided. Whatever gets picked changes what "the UI" even means here, so it's worth deciding
-before building much more:
+- **Shape:** a system tray icon (`QSystemTrayIcon`), not a KDE Plasma widget and not a standalone window. Works
+  across KDE, GNOME (with the AppIndicator extension), XFCE and most others — the actual cross-distro goal,
+  which a Plasma-only plasmoid wouldn't have met. Trades away LapBar's rotating bar-text frame for an icon plus a
+  tooltip; the click-to-open popup carries over.
+- **Toolkit:** PyQt6, imported and confirmed working on this machine (`python-pyqt6` 6.11.0 from Arch's own
+  `extra` repo, GPL-licensed — compatible with this project's GPL-3.0-or-later without any extra consideration).
+  Since the backend is already Python, PyQt6 can host both in one process: no more subprocess-and-parse-JSON
+  boundary between the UI and `lapbar/` the way Quickshell talks to `bin/lapbar` today. The four windows LapBar
+  spawns separately (charts, data, details, how-to) become native `QWidget`/`QDialog` views instead.
 
-- **Shape:** a system tray icon (works across KDE/GNOME/XFCE, closest cross-desktop equivalent to the bar
-  widget, but loses the rotating text label), a KDE Plasma widget/plasmoid (matches the bar-widget feel exactly,
-  but KDE-only), or a plain standalone window (simplest, but no longer an always-visible ambient presence — arguably
-  a different product).
-- **Toolkit:** PySide6 (Qt's own official Python bindings — keeps the backend and UI in one process, no more
-  subprocess/JSON boundary) vs. QML + QtQuick.Controls calling the existing `bin/lapbar` CLI the way LapBar's
-  Quickshell widget does today (keeps the current battle-tested IPC pattern, less to rewrite).
-- **Packaging:** AUR/pacman first (fastest path to something real, matches "pacman" and this machine's distro
-  family) with a Flatpak later, or Flatpak from the start for genuine day-one portability to every distro.
+## Still open
+
+- **Packaging:** AUR/pacman first (fastest path to something real, matches this machine's distro family) with a
+  Flatpak later, or Flatpak from the start for genuine day-one portability to every distro. Not urgent until
+  there's an app to package.
+
+## Relationship to LapBar
+
+Both keep going, as two independent projects, not one replacing the other — the Omarchy plugin stays exactly
+what it is for Omarchy users, this becomes the option for everyone else. They are two separate repositories,
+deliberately: LapBar is already partway through the Omarchy marketplace's security review, and folding unrelated
+Qt/tray code into that repository now would put an unrelated codebase in front of the same reviewer and risk
+resetting a review already in progress, for no benefit — a plugin marketplace expects one plugin at the root of
+its repo, not a plugin plus an unrelated standalone app.
+
+`backend/lapbar/` is a copy, not a shared package, so the two won't drift automatically back into sync. When a
+real bug or security fix lands in one (this copy is current as of the HTTP/OAuth/permissions/PATH hardening
+already in LapBar), it needs to be deliberately ported to the other — there's no tooling for that yet, and it's
+not worth building until keeping them in sync by hand actually becomes painful. If it does, the next step would
+be extracting `lapbar/` into its own installable package both projects depend on, rather than two copies.
 
 ## License
 
