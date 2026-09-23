@@ -135,8 +135,8 @@ def test_a_failed_records_request_does_not_break_the_refresh(monkeypatch):
 
 def write_cache(tmp_path, monkeypatch, activities, kudoers=None):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
-    (tmp_path / "lapbar").mkdir()
-    (tmp_path / "lapbar" / "cache.json").write_text(json.dumps({"activities": activities, "kudoers": kudoers or {}}))
+    (tmp_path / "lapbar-qt").mkdir()
+    (tmp_path / "lapbar-qt" / "cache.json").write_text(json.dumps({"activities": activities, "kudoers": kudoers or {}}))
 
 
 def run(capsys, *argv):

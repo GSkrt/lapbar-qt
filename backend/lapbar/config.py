@@ -9,11 +9,11 @@ def _xdg(var: str, default: str) -> Path:
 
 
 def state_dir() -> Path:
-    return _xdg("XDG_STATE_HOME", ".local/state") / "lapbar"
+    return _xdg("XDG_STATE_HOME", ".local/state") / "lapbar-qt"
 
 
 def cache_path() -> Path:
-    return _xdg("XDG_CACHE_HOME", ".cache") / "lapbar" / "cache.json"
+    return _xdg("XDG_CACHE_HOME", ".cache") / "lapbar-qt" / "cache.json"
 
 
 def data_dir() -> Path:
@@ -22,7 +22,7 @@ def data_dir() -> Path:
     Not the cache folder: everything in there can be thrown away and rebuilt for free, while this costs Strava
     requests to download again. `LAPBAR_DATA_DIR` moves it, for example to another disk."""
     override = os.environ.get("LAPBAR_DATA_DIR")
-    return Path(override) if override else _xdg("XDG_DATA_HOME", ".local/share") / "lapbar"
+    return Path(override) if override else _xdg("XDG_DATA_HOME", ".local/share") / "lapbar-qt"
 
 
 def adopt(old: Path, new: Path) -> Path:
@@ -34,29 +34,29 @@ def adopt(old: Path, new: Path) -> Path:
 
 
 def user_env_path() -> Path:
-    return _xdg("XDG_CONFIG_HOME", ".config") / "lapbar" / "env"
+    return _xdg("XDG_CONFIG_HOME", ".config") / "lapbar-qt" / "env"
 
 
 def _own_roots() -> tuple[Path, ...]:
-    """LapBar's own top-level directories: never shared with another app, so always safe to re-secure outright,
+    """lapbar-qt's own top-level directories: never shared with another app, so always safe to re-secure outright,
     however XDG_*_HOME or LAPBAR_DATA_DIR happen to point, without ever reaching up into a directory that holds
     anything but LapBar's own files."""
     return (state_dir(), data_dir(), cache_path().parent, user_env_path().parent)
 
 
 def private_dir(path: Path) -> Path:
-    """Create `path`, and make sure only the current user can enter it or anything LapBar itself just created above
-    it on the way there.
+    """Create `path`, and make sure only the current user can enter it or anything lapbar-qt itself just created
+    above it on the way there.
 
     `Path.mkdir(parents=True, mode=...)` applies its `mode` only to the final component: every intermediate
     directory it has to create along the way is made with the default, umask-derived mode instead (commonly
-    0o755, world-readable), so a call for e.g. `data_dir()/"raw"/"2026"` used to leave `~/.local/share/lapbar` and
-    `~/.local/share/lapbar/raw` -- which hold the complete GPS routes -- at whatever the umask happened to allow,
-    even though the final `2026` folder itself came out locked down. Every level this call creates is chmod'd by
-    hand instead of trusting mkdir's mode, and LapBar's own top-level directories are always re-secured too (not
-    only when freshly created), so an installation that was affected by that before this fix repairs itself the
-    next time it runs. Nothing above those top-level directories -- the shared XDG base itself, or whatever a
-    parent of a custom LAPBAR_DATA_DIR turns out to be -- is ever touched.
+    0o755, world-readable), so a call for e.g. `data_dir()/"raw"/"2026"` used to leave `~/.local/share/lapbar-qt`
+    and `~/.local/share/lapbar-qt/raw` -- which hold the complete GPS routes -- at whatever the umask happened to
+    allow, even though the final `2026` folder itself came out locked down. Every level this call creates is
+    chmod'd by hand instead of trusting mkdir's mode, and lapbar-qt's own top-level directories are always
+    re-secured too (not only when freshly created), so an installation that was affected by that before this fix
+    repairs itself the next time it runs. Nothing above those top-level directories -- the shared XDG base
+    itself, or whatever a parent of a custom LAPBAR_DATA_DIR turns out to be -- is ever touched.
     """
     created = []
     p = path

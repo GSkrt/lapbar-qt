@@ -39,7 +39,7 @@ def test_success_prints_summary_and_writes_cache(monkeypatch, capsys, tmp_path):
     except SystemExit as e:
         assert e.code == 0
     assert json.loads(capsys.readouterr().out)["provider"] == "strava"
-    assert json.loads((tmp_path / "lapbar" / "cache.json").read_text())["provider"] == "strava"
+    assert json.loads((tmp_path / "lapbar-qt" / "cache.json").read_text())["provider"] == "strava"
 
 
 def test_mute_switch_persists_and_toggles(monkeypatch, capsys, tmp_path):
@@ -74,7 +74,7 @@ def test_events_are_delivered_once_as_popups_and_never_cached(monkeypatch, capsy
         pass
     printed = json.loads(capsys.readouterr().out)
     assert delivered == [("kudos", event)] and "kudos_events" not in printed and printed["muted"] is False
-    cached = json.loads((tmp_path / "lapbar" / "cache.json").read_text())
+    cached = json.loads((tmp_path / "lapbar-qt" / "cache.json").read_text())
     assert "kudos_events" not in cached and "muted" not in cached
 
 
