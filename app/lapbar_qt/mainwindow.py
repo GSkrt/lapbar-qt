@@ -4,9 +4,9 @@ concept entirely (PLAN.md's "The main window" section). Route trace, the calenda
 controls (Open chart, skip-today, the quotes radio) are later steps; this is the read-only text content.
 """
 from PyQt6.QtCore import Qt, pyqtSlot
-from PyQt6.QtWidgets import QGridLayout, QGroupBox, QLabel, QMainWindow, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
 
-from . import detailswindow, tooltip
+from . import chartswindow, detailswindow, tooltip
 
 
 def _stat_cells(latest: dict) -> list[tuple[str, str]]:
@@ -68,8 +68,17 @@ class MainWindow(QMainWindow):
         self._details_window: detailswindow.DetailsWindow | None = None
 
         self.stats_box = QGroupBox("This ride")
-        self.stats_layout = QGridLayout(self.stats_box)
+        stats_outer = QVBoxLayout(self.stats_box)
+        self.stats_layout = QGridLayout()
+        stats_outer.addLayout(self.stats_layout)
+        charts_row = QHBoxLayout()
+        charts_row.addStretch(1)
+        self.charts_button = QPushButton("Open charts")
+        self.charts_button.clicked.connect(self._open_charts)
+        charts_row.addWidget(self.charts_button)
+        stats_outer.addLayout(charts_row)
         layout.addWidget(self.stats_box)
+        self._charts_window: chartswindow.ChartsWindow | None = None
 
         self.load_line = QLabel("")
         self.load_line.setWordWrap(True)
@@ -147,3 +156,10 @@ class MainWindow(QMainWindow):
         self._details_window = detailswindow.DetailsWindow(self._latest_id, title=self.ride_title.text() or "", parent=self)
         self._details_window.setWindowModality(Qt.WindowModality.NonModal)
         self._details_window.show()
+
+    def _open_charts(self):
+        if self._latest_id is None:
+            return
+        self._charts_window = chartswindow.ChartsWindow(self._latest_id, title=self.ride_title.text() or "", parent=self)
+        self._charts_window.setWindowModality(Qt.WindowModality.NonModal)
+        self._charts_window.show()

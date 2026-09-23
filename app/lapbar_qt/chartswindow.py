@@ -1,0 +1,115 @@
+"""Build-order step 8 (ride charts): PyQtGraph, one plot per stream (elevation, speed, heart rate, power,
+cadence, temperature, grade), X-linked with a shared crosshair. The choice and its verification --
+PyQtGraph's own downsampling matching the hand-built reduction in charts/logic.js -- are in PLAN.md.
+Fetching can hit the network (streams.get()/detail() may need to download), so it runs on a background
+QThread like everything else here.
+
+Panel.qml's chart window also has keyboard stepping (arrows, +/- to zoom, R to reset, T for a table, Esc to
+close); PyQtGraph's own mouse interactions (drag to pan, scroll to zoom, double-click to reset) cover the
+core of that for free and are what this first pass relies on -- the keyboard/table layer is a later pass.
+"""
+import pyqtgraph as pg
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
+
+from . import fetcher
+
+pg.setConfigOptions(antialias=True)
+
+
+class _ChartWorker(QObject):
+    finished = pyqtSignal(dict)
+
+    def __init__(self, activity_id: int):
+        super().__init__()
+        self.activity_id = activity_id
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            result = fetcher.chart_data_for(self.activity_id)
+        except Exception as e:  # noqa: BLE001 - reported back to the window, never raised into the thread
+            result = {"error": "unexpected", "message": str(e)}
+        self.finished.emit(result)
+
+
+class ChartsWindow(QDialog):
+    def __init__(self, activity_id: int, title: str = "", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title or "Ride charts")
+        self.resize(760, 640)
+
+        layout = QVBoxLayout(self)
+        self.status = QLabel("Loading…")
+        layout.addWidget(self.status)
+
+        self._plot_widget = pg.GraphicsLayoutWidget()
+        self._plot_widget.hide()
+        layout.addWidget(self._plot_widget)
+
+        self._plots: list = []
+        self._vlines: list = []
+
+        self._thread = QThread()
+        self._worker = _ChartWorker(activity_id)
+        self._worker.moveToThread(self._thread)
+        self._worker.finished.connect(self._on_finished)
+        # DirectConnection: see detailswindow.py -- quit() is thread-safe, and this must not wait for the
+        # main thread's event loop or the thread could still be "running" when this window is destroyed.
+        self._worker.finished.connect(self._thread.quit, Qt.ConnectionType.DirectConnection)
+        self._thread.started.connect(self._worker.run)
+        self._thread.start()
+
+    def closeEvent(self, event):
+        self._thread.quit()
+        self._thread.wait()
+        super().closeEvent(event)
+
+    def _on_finished(self, data: dict):
+        self._thread.quit()
+        self._thread.wait()
+        if "error" in data:
+            self.status.setText(f"Could not load charts: {data.get('message', data.get('error'))}")
+            return
+        self.status.hide()
+        self._build_plots(data)
+        self._plot_widget.show()
+
+    def _build_plots(self, data: dict):
+        x = data["x"]["values"]
+        x_label = f"{data['x']['label']} ({data['x']['unit']})"
+        series = data["series"]
+
+        first_plot = None
+        for i, s in enumerate(series):
+            plot = self._plot_widget.addPlot(row=i, col=0)
+            plot.setLabel("left", s["label"], units=s["unit"])
+            if i == len(series) - 1:
+                plot.setLabel("bottom", x_label)
+            plot.showGrid(x=True, y=True, alpha=0.2)
+
+            y = [v if v is not None else float("nan") for v in s["values"]]
+            curve = plot.plot(x, y, pen=pg.intColor(i, hues=max(len(series), 1)))
+            curve.setDownsampling(auto=True, method="peak")
+            curve.setClipToView(True)
+
+            if first_plot is None:
+                first_plot = plot
+            else:
+                plot.setXLink(first_plot)
+
+            vline = pg.InfiniteLine(angle=90, movable=False)
+            plot.addItem(vline, ignoreBounds=True)
+            self._plots.append(plot)
+            self._vlines.append(vline)
+
+        if self._plots:
+            self._plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)
+
+    def _on_mouse_moved(self, pos):
+        for plot in self._plots:
+            if plot.sceneBoundingRect().contains(pos):
+                x_val = plot.vb.mapSceneToView(pos).x()
+                for vline in self._vlines:
+                    vline.setPos(x_val)
+                return
