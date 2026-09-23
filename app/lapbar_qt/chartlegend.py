@@ -22,6 +22,7 @@ class ValueRow(QWidget):
         layout.addWidget(self.value_label)
 
         self.minmax_label = QLabel("")
+        self.minmax_label.setWordWrap(True)
         self.minmax_label.setStyleSheet("color: gray;")
         layout.addWidget(self.minmax_label)
 
@@ -48,5 +49,5 @@ def font_sizes_for(row_height: float) -> tuple[int, int, int]:
     stays close to the value's own size rather than fading to a footnote."""
     value_pt = max(16, min(40, round(row_height * 0.26)))
     name_pt = max(11, round(value_pt * 0.55))
-    minmax_pt = max(11, round(value_pt * 0.7))
+    minmax_pt = max(9, min(15, round(value_pt * 0.5)))
     return value_pt, name_pt, minmax_pt
