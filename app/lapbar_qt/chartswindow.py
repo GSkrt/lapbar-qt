@@ -10,7 +10,7 @@ core of that for free and are what this first pass relies on -- the keyboard/tab
 """
 import pyqtgraph as pg
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
-from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
 from . import fetcher
 
@@ -42,6 +42,9 @@ class ChartsWindow(QDialog):
         layout = QVBoxLayout(self)
         self.status = QLabel("Loading…")
         layout.addWidget(self.status)
+
+        self._toggles_row = QHBoxLayout()
+        layout.addLayout(self._toggles_row)
 
         self._plot_widget = pg.GraphicsLayoutWidget()
         self._plot_widget.hide()
@@ -102,6 +105,12 @@ class ChartsWindow(QDialog):
             plot.addItem(vline, ignoreBounds=True)
             self._plots.append(plot)
             self._vlines.append(vline)
+
+            # "Click a name to hide that measure" (docs/help.md) -- each row's own checkbox toggles it.
+            checkbox = QCheckBox(s["label"])
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(lambda checked, p=plot: p.setVisible(checked))
+            self._toggles_row.addWidget(checkbox)
 
         if self._plots:
             self._plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)

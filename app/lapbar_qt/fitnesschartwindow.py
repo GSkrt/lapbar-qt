@@ -7,7 +7,7 @@ summary, no background thread needed.
 from datetime import datetime, timezone
 
 import pyqtgraph as pg
-from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
 pg.setConfigOptions(antialias=True)
 
@@ -35,6 +35,9 @@ class FitnessChartWindow(QDialog):
 
         x = [_epoch(d["date"]) for d in days]
         width = (x[1] - x[0]) * 0.8 if len(x) > 1 else 86400 * 0.8
+
+        toggles_row = QHBoxLayout()
+        layout.addLayout(toggles_row)
 
         plot_widget = pg.GraphicsLayoutWidget()
         layout.addWidget(plot_widget)
@@ -73,6 +76,14 @@ class FitnessChartWindow(QDialog):
         bottom.showGrid(x=True, y=True, alpha=0.2)
         bottom.setXLink(top)
         bottom.addItem(pg.BarGraphItem(x=x, height=[d["load"] for d in days], width=width, brush=(140, 140, 140)))
+
+        # "Click a name to hide that measure" (docs/help.md): fitness/fatigue toggle their own curve since
+        # both share the top plot; form/load toggle their whole row since each has one of its own.
+        for label, target in (("Fitness", fitness_curve), ("Fatigue", fatigue_curve), ("Form", middle), ("Load", bottom)):
+            checkbox = QCheckBox(label)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(lambda checked, t=target: t.setVisible(checked))
+            toggles_row.addWidget(checkbox)
 
         self._plots = [top, middle, bottom]
         self._vlines = []
