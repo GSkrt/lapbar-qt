@@ -11,11 +11,13 @@ REFRESH_INTERVAL_MS = 15 * 60 * 1000  # matches LapBar's own documented default 
 
 class FetchWorker(QObject):
     tooltipReady = pyqtSignal(str)
+    needsSetup = pyqtSignal()  # emitted once, the first time a fetch reports no (or no longer valid) credentials
 
     def __init__(self):
         super().__init__()
         self._last_summary: dict | None = None
         self._timer: QTimer | None = None
+        self._setup_signalled = False
 
     def start(self):
         # Created here, not in __init__, so the QTimer is owned by whichever thread calls start() --
@@ -33,18 +35,25 @@ class FetchWorker(QObject):
             self.tooltipReady.emit(tooltip.build_tooltip(self._last_summary, {"code": "unexpected", "message": str(e)}))
             return
         if "error" in result:
-            self.tooltipReady.emit(tooltip.build_tooltip(self._last_summary, {"code": result["error"], "message": result.get("message")}))
+            code = result["error"]
+            self.tooltipReady.emit(tooltip.build_tooltip(self._last_summary, {"code": code, "message": result.get("message")}))
+            if code in tooltip.NEEDS_SETUP_CODES and not self._setup_signalled:
+                self._setup_signalled = True
+                self.needsSetup.emit()
             return
+        self._setup_signalled = False  # a later successful fetch means credentials are good again
         self._last_summary = result
         self.tooltipReady.emit(tooltip.build_tooltip(result))
 
 
-def start_background_refresh(on_tooltip) -> tuple[QThread, FetchWorker]:
+def start_background_refresh(on_tooltip, on_needs_setup=None) -> tuple[QThread, FetchWorker]:
     """Owns the thread's lifetime; caller keeps the returned objects alive (e.g. as attributes on the tray)."""
     thread = QThread()
     worker = FetchWorker()
     worker.moveToThread(thread)
     worker.tooltipReady.connect(on_tooltip)
+    if on_needs_setup:
+        worker.needsSetup.connect(on_needs_setup)
     thread.started.connect(worker.start)
     thread.start()
     return thread, worker
