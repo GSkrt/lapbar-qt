@@ -44,8 +44,9 @@ def font_sizes_for(row_height: float) -> tuple[int, int, int]:
     """(value_pt, name_pt, minmax_pt) scaled to how much vertical space each row actually gets -- fewer
     measures means a taller row and a larger value; a plot's own axis label text sits around 9-10pt, so the
     current-value number is deliberately well above that, the same way charts/shell.qml's legend used a
-    visibly larger, bold number (20px) against its 12px axis/title text."""
-    value_pt = max(12, min(28, round(row_height * 0.16)))
-    name_pt = max(8, round(value_pt * 0.5))
-    minmax_pt = max(7, round(value_pt * 0.45))
+    visibly larger, bold number (20px) against its 12px axis/title text. The min/max line specifically
+    stays close to the value's own size rather than fading to a footnote."""
+    value_pt = max(16, min(40, round(row_height * 0.26)))
+    name_pt = max(11, round(value_pt * 0.55))
+    minmax_pt = max(11, round(value_pt * 0.7))
     return value_pt, name_pt, minmax_pt
