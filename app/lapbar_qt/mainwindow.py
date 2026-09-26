@@ -1,9 +1,9 @@
 """Build-order step 4: left-click opens the main window, with real fetched data -- Panel.qml's popup
 content, minus the ⋮ menu (moved to the tray's right-click already) and minus the bar-frame concept
-entirely (PLAN.md's "The main window" section). Route trace, the calendar, and the skip-today buttons are
-still deferred; the "Motivational quotes" tone picker was added alongside notifications (see worker.py --
-coach nudges and kudos/comment alerts already fire for real through the reused cli.cmd_fetch, unconditional
-on any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
+entirely (PLAN.md's "The main window" section). The calendar and the skip-today buttons are still
+deferred; the "Motivational quotes" tone picker was added alongside notifications (see worker.py -- coach
+nudges and kudos/comment alerts already fire for real through the reused cli.cmd_fetch, unconditional on
+any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
 """
 from datetime import date
 
@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, 
 
 from lapbar import coach, prefs
 
-from . import chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, tooltip
+from . import chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview, tooltip
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
 
@@ -103,6 +103,9 @@ class MainWindow(QMainWindow):
         self._latest_id: int | None = None
         self._latest_url: str | None = None
         self._details_window: detailswindow.DetailsWindow | None = None
+
+        self.route_preview = routepreview.RoutePreview()
+        left_col.addWidget(self.route_preview)
 
         self.strava_link = QLabel("")
         self.strava_link.setTextFormat(Qt.TextFormat.RichText)
@@ -200,6 +203,7 @@ class MainWindow(QMainWindow):
         latest = summary.get("latest") or {}
         self._latest_id = latest.get("id")
         self._latest_url = latest.get("url")
+        self.route_preview.set_route(latest.get("route"))
         if latest.get("name"):
             self.ride_title.setText(f"{latest['name']}  ·  {tooltip.sport_name(latest.get('sport'))}")
         else:
