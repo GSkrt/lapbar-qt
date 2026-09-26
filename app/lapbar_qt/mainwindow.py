@@ -1,12 +1,38 @@
-"""Build-order step 4: left-click opens the main window, read-only, with real fetched data -- Panel.qml's
-popup content, minus the ⋮ menu (moved to the tray's right-click already) and minus the bar-frame
-concept entirely (PLAN.md's "The main window" section). Route trace, the calendar, and any interactive
-controls (Open chart, skip-today, the quotes radio) are later steps; this is the read-only text content.
+"""Build-order step 4: left-click opens the main window, with real fetched data -- Panel.qml's popup
+content, minus the ⋮ menu (moved to the tray's right-click already) and minus the bar-frame concept
+entirely (PLAN.md's "The main window" section). Route trace, the calendar, and the skip-today buttons are
+still deferred; the "Motivational quotes" tone picker was added alongside notifications (see worker.py --
+coach nudges and kudos/comment alerts already fire for real through the reused cli.cmd_fetch, unconditional
+on any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
 """
-from PyQt6.QtCore import Qt, pyqtSlot
-from PyQt6.QtWidgets import QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
+from datetime import date
+
+from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtWidgets import (QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow,
+                             QPushButton, QRadioButton, QVBoxLayout, QWidget)
+
+from lapbar import coach, prefs
 
 from . import chartswindow, detailswindow, fitnesschartwindow, tooltip
+
+TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
+
+
+class _TryOneWorker(QObject):
+    finished = pyqtSignal()
+
+    def __init__(self, tone: str):
+        super().__init__()
+        self.tone = tone
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            event = coach.sample(self.tone)
+            coach.show(event, date.today().isoformat(), timeout_ms=8000)
+        except Exception:  # noqa: BLE001 - a preview popup failing must never take the app down with it
+            pass
+        self.finished.emit()
 
 
 def _stat_cells(latest: dict) -> list[tuple[str, str]]:
@@ -99,6 +125,29 @@ class MainWindow(QMainWindow):
         self._latest_fitness: dict | None = None
         self._fitness_chart_window: fitnesschartwindow.FitnessChartWindow | None = None
 
+        self.quotes_box = QGroupBox("Motivational quotes")
+        quotes_layout = QVBoxLayout(self.quotes_box)
+        self._tone_group = QButtonGroup(self.quotes_box)
+        self._tone_radios: dict[str, QRadioButton] = {}
+        current_tone = prefs.load()["coach_tone"]
+        for tone_id, label in TONE_LABELS:
+            radio = QRadioButton(label)
+            radio.setChecked(tone_id == current_tone)
+            radio.toggled.connect(lambda checked, t=tone_id: checked and self._set_tone(t))
+            self._tone_group.addButton(radio)
+            self._tone_radios[tone_id] = radio
+            quotes_layout.addWidget(radio)
+        try_row = QHBoxLayout()
+        try_row.addStretch(1)
+        self.try_one_button = QPushButton("Try one ↗")
+        self.try_one_button.setEnabled(current_tone != "off")
+        self.try_one_button.clicked.connect(self._try_one)
+        try_row.addWidget(self.try_one_button)
+        quotes_layout.addLayout(try_row)
+        layout.addWidget(self.quotes_box)
+        self._try_one_thread: QThread | None = None
+        self._try_one_worker: _TryOneWorker | None = None
+
         self.totals_box = QGroupBox("Totals")
         totals_layout = QGridLayout(self.totals_box)
         self.totals_labels: dict[str, QLabel] = {}
@@ -179,3 +228,27 @@ class MainWindow(QMainWindow):
         self._fitness_chart_window = fitnesschartwindow.FitnessChartWindow(self._latest_fitness, parent=self)
         self._fitness_chart_window.setWindowModality(Qt.WindowModality.NonModal)
         self._fitness_chart_window.show()
+
+    def _set_tone(self, tone: str):
+        prefs.update(coach_tone=tone)
+        self.try_one_button.setEnabled(tone != "off")
+
+    def _try_one(self):
+        tone = next((t for t, radio in self._tone_radios.items() if radio.isChecked()), "motivational")
+        if tone == "off":
+            return
+        self.try_one_button.setEnabled(False)
+        self._try_one_thread = QThread()
+        self._try_one_worker = _TryOneWorker(tone)
+        self._try_one_worker.moveToThread(self._try_one_thread)
+        self._try_one_worker.finished.connect(self._on_try_one_finished)
+        # DirectConnection: see detailswindow.py -- quit() is thread-safe, and this must not wait for the
+        # main thread's event loop or the thread could still be "running" when this window is destroyed.
+        self._try_one_worker.finished.connect(self._try_one_thread.quit, Qt.ConnectionType.DirectConnection)
+        self._try_one_thread.started.connect(self._try_one_worker.run)
+        self._try_one_thread.start()
+
+    def _on_try_one_finished(self):
+        self._try_one_thread.quit()
+        self._try_one_thread.wait()
+        self.try_one_button.setEnabled(True)

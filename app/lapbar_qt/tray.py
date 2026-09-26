@@ -138,6 +138,11 @@ def main() -> int:
     def shutdown():
         thread.quit()
         thread.wait()
+        # main_window's "Try one" preview can still be waiting on notify-send (up to ~38s) when the app
+        # quits; stop it too so Qt never destroys a QThread it still considers running.
+        if main_window._try_one_thread is not None:
+            main_window._try_one_thread.quit()
+            main_window._try_one_thread.wait()
 
     app.aboutToQuit.connect(shutdown)
 
