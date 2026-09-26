@@ -256,8 +256,9 @@ class MainWindow(QMainWindow):
 
         if latest:
             kudos, prs, comments = latest.get("kudos", 0), latest.get("prs", 0), latest.get("comments", 0)
-            text = (f"\U0001f44d {kudos}  ·  {prs} {'PR' if prs == 1 else 'PRs'}  ·  "
-                    f"{comments} {'comment' if comments == 1 else 'comments'}")
+            # Same icons detailswindow.py already uses per record kind (docs/help.md's own words: "a medal
+            # for a personal record, a cup for a top-10 place"); 💬 for comments is the standard icon.
+            text = (f"\U0001f44d {kudos}  ·  \U0001f3c5 {prs}  ·  \U0001f4ac {comments}")
             self.kudos_line.setText(f'<a href="details" style="color: inherit; text-decoration: underline;">{text}</a>')
         else:
             self.kudos_line.setText("")
