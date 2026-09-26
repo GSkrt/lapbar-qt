@@ -5,7 +5,6 @@ still deferred; the "Motivational quotes" tone picker was added alongside notifi
 coach nudges and kudos/comment alerts already fire for real through the reused cli.cmd_fetch, unconditional
 on any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
 """
-import webbrowser
 from datetime import date
 
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
@@ -71,11 +70,21 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("lapbar-qt")
-        self.resize(420, 560)
+        self.resize(760, 600)
 
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
+        outer = QVBoxLayout(central)
+
+        # Two columns side by side, same shape as Panel.qml's leftCol/rightCol: the ride itself on the
+        # left, fitness/training/quotes on the right. "Powered by Strava" sits below both, right-aligned,
+        # matching Panel.qml's own credit image anchored to the popup's bottom-right corner.
+        columns = QHBoxLayout()
+        outer.addLayout(columns, stretch=1)
+        left_col = QVBoxLayout()
+        right_col = QVBoxLayout()
+        columns.addLayout(left_col, stretch=1)
+        columns.addLayout(right_col, stretch=1)
 
         self.ride_title = QLabel("Loading…")
         self.ride_title.setWordWrap(True)
@@ -83,14 +92,14 @@ class MainWindow(QMainWindow):
         title_font.setPointSize(title_font.pointSize() + 3)
         title_font.setBold(True)
         self.ride_title.setFont(title_font)
-        layout.addWidget(self.ride_title)
+        left_col.addWidget(self.ride_title)
 
         # A link, not plain text: clicking it opens the details window (comments, records, kudos) for the
         # ride currently shown -- linkActivated fires on click without actually opening a URL.
         self.kudos_line = QLabel("")
         self.kudos_line.setTextFormat(Qt.TextFormat.RichText)
         self.kudos_line.linkActivated.connect(self._open_details)
-        layout.addWidget(self.kudos_line)
+        left_col.addWidget(self.kudos_line)
         self._latest_id: int | None = None
         self._latest_url: str | None = None
         self._details_window: detailswindow.DetailsWindow | None = None
@@ -98,7 +107,7 @@ class MainWindow(QMainWindow):
         self.strava_link = QLabel("")
         self.strava_link.setTextFormat(Qt.TextFormat.RichText)
         self.strava_link.setOpenExternalLinks(True)
-        layout.addWidget(self.strava_link)
+        left_col.addWidget(self.strava_link)
 
         self.stats_box = QGroupBox("This ride")
         stats_outer = QVBoxLayout(self.stats_box)
@@ -110,17 +119,18 @@ class MainWindow(QMainWindow):
         self.charts_button.clicked.connect(self._open_charts)
         charts_row.addWidget(self.charts_button)
         stats_outer.addLayout(charts_row)
-        layout.addWidget(self.stats_box)
+        left_col.addWidget(self.stats_box)
         self._charts_window: chartswindow.ChartsWindow | None = None
 
         self.storage_line = QLabel("")
         self.storage_line.setWordWrap(True)
         self.storage_line.setStyleSheet("color: gray;")
-        layout.addWidget(self.storage_line)
+        left_col.addWidget(self.storage_line)
+        left_col.addStretch(1)
 
         self.load_line = QLabel("")
         self.load_line.setWordWrap(True)
-        layout.addWidget(self.load_line)
+        right_col.addWidget(self.load_line)
 
         self.fitness_box = QGroupBox("Fitness, fatigue and form")
         fitness_layout = QVBoxLayout(self.fitness_box)
@@ -128,14 +138,19 @@ class MainWindow(QMainWindow):
         self.fitness_line.setWordWrap(True)
         fitness_layout.addWidget(self.fitness_line)
         self.fitness_plot = fitnessminiplot.FitnessMiniPlot()
+        self.fitness_plot.dayHovered.connect(self._on_fitness_hover)
         fitness_layout.addWidget(self.fitness_plot)
+        self.fitness_hover_label = QLabel("")
+        self.fitness_hover_label.setWordWrap(True)
+        self.fitness_hover_label.setStyleSheet("color: gray;")
+        fitness_layout.addWidget(self.fitness_hover_label)
         fitness_chart_row = QHBoxLayout()
         fitness_chart_row.addStretch(1)
         self.fitness_chart_button = QPushButton("Open chart")
         self.fitness_chart_button.clicked.connect(self._open_fitness_chart)
         fitness_chart_row.addWidget(self.fitness_chart_button)
         fitness_layout.addLayout(fitness_chart_row)
-        layout.addWidget(self.fitness_box)
+        right_col.addWidget(self.fitness_box)
         self._latest_fitness: dict | None = None
         self._fitness_chart_window: fitnesschartwindow.FitnessChartWindow | None = None
 
@@ -158,7 +173,7 @@ class MainWindow(QMainWindow):
         self.try_one_button.clicked.connect(self._try_one)
         try_row.addWidget(self.try_one_button)
         quotes_layout.addLayout(try_row)
-        layout.addWidget(self.quotes_box)
+        right_col.addWidget(self.quotes_box)
         self._try_one_thread: QThread | None = None
         self._try_one_worker: _TryOneWorker | None = None
 
@@ -170,13 +185,15 @@ class MainWindow(QMainWindow):
             value_label = QLabel("—")
             totals_layout.addWidget(value_label, row, 1)
             self.totals_labels[period] = value_label
-        layout.addWidget(self.totals_box)
+        right_col.addWidget(self.totals_box)
+        right_col.addStretch(1)
 
-        layout.addStretch(1)
-
+        footer_row = QHBoxLayout()
+        footer_row.addStretch(1)
         footer = QLabel("Powered by Strava")
         footer.setStyleSheet("color: gray;")
-        layout.addWidget(footer)
+        footer_row.addWidget(footer)
+        outer.addLayout(footer_row)
 
     @pyqtSlot(dict)
     def update_summary(self, summary: dict):
@@ -263,6 +280,14 @@ class MainWindow(QMainWindow):
         self._fitness_chart_window = fitnesschartwindow.FitnessChartWindow(self._latest_fitness, parent=self)
         self._fitness_chart_window.setWindowModality(Qt.WindowModality.NonModal)
         self._fitness_chart_window.show()
+
+    def _on_fitness_hover(self, day: dict | None):
+        if day is None:
+            self.fitness_hover_label.setText("")
+            return
+        self.fitness_hover_label.setText(
+            f"{day['date']} · Form {tooltip.signed(day['form'])} · fitness {round(day['fitness'])} "
+            f"· fatigue {round(day['fatigue'])}")
 
     def _set_tone(self, tone: str):
         prefs.update(coach_tone=tone)

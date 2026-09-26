@@ -1,12 +1,14 @@
 """Compact fitness/fatigue/form preview for the main window, matching Panel.qml's FitnessPlot.qml: fitness
 and fatigue as lines on top, form as green/orange bars underneath (tomorrow's as an outline), a small fixed
 height, no zoom/pan (it's a static preview -- docs/help.md describes it as part of the popup itself: "a
-plain-words status and the plot"). The full, interactive, linked-crosshair version with min/max and a
-Load row lives in fitnesschartwindow.py, behind the "Open chart" button next to this.
+plain-words status and the plot. Hover any day."). The full, interactive, linked-crosshair version with
+min/max and a Load row lives in fitnesschartwindow.py, behind the "Open chart" button next to this.
 """
+import bisect
 from datetime import datetime, timezone
 
 import pyqtgraph as pg
+from PyQt6.QtCore import QEvent, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 pg.setConfigOptions(antialias=True)
@@ -23,20 +25,33 @@ def _epoch(iso_date: str) -> float:
 
 
 class FitnessMiniPlot(QWidget):
+    dayHovered = pyqtSignal(object)  # the hovered day's dict, or None once the mouse leaves the plot
+
     def __init__(self):
         super().__init__()
         self.setFixedHeight(160)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._plot_widget = pg.GraphicsLayoutWidget()
+        self._plot_widget.installEventFilter(self)  # Leave doesn't reach FitnessMiniPlot's own leaveEvent,
+        # since the GraphicsLayoutWidget (a QGraphicsView) is the widget actually under the mouse
         layout.addWidget(self._plot_widget)
+        self._x: list[float] = []
+        self._days: list[dict] = []
+        self._plots: list = []
+        self._vlines: list = []
 
     def update_fitness(self, fitness: dict):
         self._plot_widget.clear()
+        self._plots = []
+        self._vlines = []
         days = (fitness or {}).get("days") or []
+        self._days = days
         if len(days) < 2:
+            self._x = []
             return
         x = [_epoch(d["date"]) for d in days]
+        self._x = x
         width = (x[1] - x[0]) * 0.8
 
         top = self._plot_widget.addPlot(row=0, col=0)
@@ -70,3 +85,39 @@ class FitnessMiniPlot(QWidget):
             tx, ty = _epoch(tomorrow["date"]), tomorrow["form"]
             color = FRESH_GREEN if ty >= 0 else TIRED_ORANGE
             middle.addItem(pg.BarGraphItem(x=[tx], height=[ty], width=width, brush=None, pen=pg.mkPen(color, width=2)))
+
+        for plot in (top, middle):
+            vline = pg.InfiniteLine(angle=90, movable=False)
+            vline.hide()
+            plot.addItem(vline, ignoreBounds=True)
+            self._plots.append(plot)
+            self._vlines.append(vline)
+        self._plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)
+
+    def leaveEvent(self, event):
+        for vline in self._vlines:
+            vline.hide()
+        self.dayHovered.emit(None)
+        super().leaveEvent(event)
+
+    def _on_mouse_moved(self, pos):
+        for plot in self._plots:
+            if plot.sceneBoundingRect().contains(pos):
+                x_val = plot.vb.mapSceneToView(pos).x()
+                for vline in self._vlines:
+                    vline.setPos(x_val)
+                    vline.show()
+                self._emit_hovered(x_val)
+                return
+        for vline in self._vlines:
+            vline.hide()
+        self.dayHovered.emit(None)
+
+    def _emit_hovered(self, x_val: float):
+        if not self._x:
+            return
+        idx = bisect.bisect_left(self._x, x_val)
+        idx = max(0, min(idx, len(self._x) - 1))
+        if idx > 0 and abs(self._x[idx - 1] - x_val) < abs(self._x[idx] - x_val):
+            idx -= 1
+        self.dayHovered.emit(self._days[idx])
