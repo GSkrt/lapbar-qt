@@ -5,6 +5,7 @@ still deferred; the "Motivational quotes" tone picker was added alongside notifi
 coach nudges and kudos/comment alerts already fire for real through the reused cli.cmd_fetch, unconditional
 on any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
 """
+import webbrowser
 from datetime import date
 
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
@@ -13,7 +14,7 @@ from PyQt6.QtWidgets import (QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, 
 
 from lapbar import coach, prefs
 
-from . import chartswindow, detailswindow, fitnesschartwindow, tooltip
+from . import chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, tooltip
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
 
@@ -91,7 +92,13 @@ class MainWindow(QMainWindow):
         self.kudos_line.linkActivated.connect(self._open_details)
         layout.addWidget(self.kudos_line)
         self._latest_id: int | None = None
+        self._latest_url: str | None = None
         self._details_window: detailswindow.DetailsWindow | None = None
+
+        self.strava_link = QLabel("")
+        self.strava_link.setTextFormat(Qt.TextFormat.RichText)
+        self.strava_link.setOpenExternalLinks(True)
+        layout.addWidget(self.strava_link)
 
         self.stats_box = QGroupBox("This ride")
         stats_outer = QVBoxLayout(self.stats_box)
@@ -106,6 +113,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.stats_box)
         self._charts_window: chartswindow.ChartsWindow | None = None
 
+        self.storage_line = QLabel("")
+        self.storage_line.setWordWrap(True)
+        self.storage_line.setStyleSheet("color: gray;")
+        layout.addWidget(self.storage_line)
+
         self.load_line = QLabel("")
         self.load_line.setWordWrap(True)
         layout.addWidget(self.load_line)
@@ -115,6 +127,8 @@ class MainWindow(QMainWindow):
         self.fitness_line = QLabel("")
         self.fitness_line.setWordWrap(True)
         fitness_layout.addWidget(self.fitness_line)
+        self.fitness_plot = fitnessminiplot.FitnessMiniPlot()
+        fitness_layout.addWidget(self.fitness_plot)
         fitness_chart_row = QHBoxLayout()
         fitness_chart_row.addStretch(1)
         self.fitness_chart_button = QPushButton("Open chart")
@@ -168,6 +182,7 @@ class MainWindow(QMainWindow):
     def update_summary(self, summary: dict):
         latest = summary.get("latest") or {}
         self._latest_id = latest.get("id")
+        self._latest_url = latest.get("url")
         if latest.get("name"):
             self.ride_title.setText(f"{latest['name']}  ·  {tooltip.sport_name(latest.get('sport'))}")
         else:
@@ -181,6 +196,11 @@ class MainWindow(QMainWindow):
         else:
             self.kudos_line.setText("")
 
+        if self._latest_url:
+            self.strava_link.setText(f'<a href="{self._latest_url}">View on Strava</a>')
+        else:
+            self.strava_link.setText("")
+
         while self.stats_layout.count():
             item = self.stats_layout.takeAt(0)
             if item.widget():
@@ -189,15 +209,30 @@ class MainWindow(QMainWindow):
             self.stats_layout.addWidget(QLabel(label + ":"), row, 0)
             self.stats_layout.addWidget(QLabel(value), row, 1)
 
+        archive = summary.get("archive") or {}
+        budget = summary.get("budget") or {}
+        if archive or budget:
+            parts = []
+            if archive:
+                parts.append(f"{archive.get('stored', 0)} of {archive.get('total', 0)} activities stored")
+            if budget:
+                parts.append(f"{budget.get('daily_used', 0)} of {budget.get('daily_limit', 0)} requests used today")
+            self.storage_line.setText("  ·  ".join(parts))
+        else:
+            self.storage_line.setText("")
+
         self.load_line.setText(tooltip.load_headline(summary.get("load")) or "No training last week to compare")
 
         fitness = summary.get("fitness") or {}
         self._latest_fitness = fitness
+        self.fitness_plot.update_fitness(fitness)
         now, tomorrow = fitness.get("current"), fitness.get("tomorrow")
         if now and now.get("status") != "starting":
             status = tooltip.FITNESS_STATUS_NAME.get(now.get("status"), "").lower()
             text = (f"Form {tooltip.signed(now['form'])} ({status}) · fitness {round(now['fitness'])} "
                     f"· fatigue {round(now['fatigue'])}")
+            if fitness.get("ftp"):
+                text += f" · FTP {fitness['ftp']} W"
             if tomorrow:
                 tstatus = tooltip.FITNESS_STATUS_NAME.get(tomorrow.get("status"), "").lower()
                 text += f"\nTomorrow {tooltip.signed(tomorrow['form'])} ({tstatus}) with today's work counted"
