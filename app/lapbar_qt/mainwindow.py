@@ -10,7 +10,7 @@ from datetime import date
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
-from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtGui import QPainter, QPalette, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
                              QMainWindow, QPushButton, QRadioButton, QVBoxLayout, QWidget)
@@ -259,7 +259,12 @@ class MainWindow(QMainWindow):
             # Same icons detailswindow.py already uses per record kind (docs/help.md's own words: "a medal
             # for a personal record, a cup for a top-10 place"); 💬 for comments is the standard icon.
             text = (f"\U0001f44d {kudos}  ·  \U0001f3c5 {prs}  ·  \U0001f4ac {comments}")
-            self.kudos_line.setText(f'<a href="details" style="color: inherit; text-decoration: underline;">{text}</a>')
+            # Qt's rich-text engine does not actually honor "color: inherit" on an <a> tag -- it falls back
+            # to a hardcoded, near-invisible default on a dark background (verified by rendering both to a
+            # pixmap and comparing pixel colors). The real window text color has to be spelled out.
+            text_color = self.palette().color(QPalette.ColorRole.WindowText).name()
+            self.kudos_line.setText(
+                f'<a href="details" style="color: {text_color}; text-decoration: none;">{text}</a>')
         else:
             self.kudos_line.setText("")
 
