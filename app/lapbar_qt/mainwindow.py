@@ -162,7 +162,7 @@ class MainWindow(QMainWindow):
             f"QPushButton:disabled {{ background-color: palette(button); color: palette(disabled-text); }}")
         self.strava_button.clicked.connect(self._open_on_strava)
         overview_buttons.addWidget(self.strava_button)
-        self.charts_button = QPushButton("Open charts")
+        self.charts_button = QPushButton("Activity metrics")
         self.charts_button.clicked.connect(self._open_charts)
         overview_buttons.addWidget(self.charts_button)
         ride_box_layout.addLayout(overview_buttons)
