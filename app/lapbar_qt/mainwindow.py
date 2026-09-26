@@ -110,26 +110,38 @@ class MainWindow(QMainWindow):
         columns.addLayout(left_col, stretch=1)
         columns.addLayout(right_col, stretch=1)
 
+        # Everything about the latest ride lives in one bordered box -- title, kudos, route, buttons and
+        # stats used to be loose, separately-spaced widgets (title, then a gap, then a separate "This ride"
+        # box for just the stats); grouping them visually as one unit and giving the stats real emphasis is
+        # what was actually missing, not just bigger numbers in isolation.
+        self.ride_box = QGroupBox("Latest ride")
+        ride_box_layout = QVBoxLayout(self.ride_box)
+        ride_box_layout.setSpacing(10)
+        left_col.addWidget(self.ride_box)
+
         self.ride_title = QLabel("Loading…")
         self.ride_title.setWordWrap(True)
         title_font = self.ride_title.font()
-        title_font.setPointSize(title_font.pointSize() + 3)
+        title_font.setPointSize(title_font.pointSize() + 5)
         title_font.setBold(True)
         self.ride_title.setFont(title_font)
-        left_col.addWidget(self.ride_title)
+        ride_box_layout.addWidget(self.ride_title)
 
         # A link, not plain text: clicking it opens the details window (comments, records, kudos) for the
         # ride currently shown -- linkActivated fires on click without actually opening a URL.
         self.kudos_line = QLabel("")
         self.kudos_line.setTextFormat(Qt.TextFormat.RichText)
         self.kudos_line.linkActivated.connect(self._open_details)
-        left_col.addWidget(self.kudos_line)
+        kudos_font = self.kudos_line.font()
+        kudos_font.setPointSize(kudos_font.pointSize() + 2)
+        self.kudos_line.setFont(kudos_font)
+        ride_box_layout.addWidget(self.kudos_line)
         self._latest_id: int | None = None
         self._latest_url: str | None = None
         self._details_window: detailswindow.DetailsWindow | None = None
 
         self.route_preview = routepreview.RoutePreview()
-        left_col.addWidget(self.route_preview)
+        ride_box_layout.addWidget(self.route_preview)
 
         # Both buttons right under the route/overview graphics, not one as a text link elsewhere and the
         # other buried inside the stats box.
@@ -143,17 +155,20 @@ class MainWindow(QMainWindow):
         self.charts_button = QPushButton("Open charts")
         self.charts_button.clicked.connect(self._open_charts)
         overview_buttons.addWidget(self.charts_button)
-        left_col.addLayout(overview_buttons)
+        ride_box_layout.addLayout(overview_buttons)
         self._charts_window: chartswindow.ChartsWindow | None = None
 
-        self.stats_box = QGroupBox("This ride")
-        self.stats_layout = QGridLayout(self.stats_box)
-        left_col.addWidget(self.stats_box)
+        # Basic ride data (distance, time, climb...) matters most here, so it gets real emphasis: bigger,
+        # bold values, not the same small default text as everything else.
+        self.stats_layout = QGridLayout()
+        self.stats_layout.setHorizontalSpacing(14)
+        self.stats_layout.setVerticalSpacing(6)
+        ride_box_layout.addLayout(self.stats_layout)
 
         self.storage_line = QLabel("")
         self.storage_line.setWordWrap(True)
         self.storage_line.setStyleSheet("color: gray;")
-        left_col.addWidget(self.storage_line)
+        ride_box_layout.addWidget(self.storage_line)
         left_col.addStretch(1)
 
         self.load_line = QLabel("")
@@ -241,7 +256,7 @@ class MainWindow(QMainWindow):
 
         if latest:
             kudos, prs, comments = latest.get("kudos", 0), latest.get("prs", 0), latest.get("comments", 0)
-            text = (f"{kudos} {'kudo' if kudos == 1 else 'kudos'}  ·  {prs} {'PR' if prs == 1 else 'PRs'}  ·  "
+            text = (f"\U0001f44d {kudos}  ·  {prs} {'PR' if prs == 1 else 'PRs'}  ·  "
                     f"{comments} {'comment' if comments == 1 else 'comments'}")
             self.kudos_line.setText(f'<a href="details" style="color: inherit; text-decoration: underline;">{text}</a>')
         else:
@@ -254,8 +269,17 @@ class MainWindow(QMainWindow):
             if item.widget():
                 item.widget().deleteLater()
         for row, (label, value) in enumerate(_stat_cells(latest)):
-            self.stats_layout.addWidget(QLabel(label + ":"), row, 0)
-            self.stats_layout.addWidget(QLabel(value), row, 1)
+            label_widget = QLabel(label + ":")
+            label_font = label_widget.font()
+            label_font.setPointSize(label_font.pointSize() + 1)
+            label_widget.setFont(label_font)
+            value_widget = QLabel(value)
+            value_font = value_widget.font()
+            value_font.setPointSize(value_font.pointSize() + 3)
+            value_font.setBold(True)
+            value_widget.setFont(value_font)
+            self.stats_layout.addWidget(label_widget, row, 0)
+            self.stats_layout.addWidget(value_widget, row, 1)
 
         archive = summary.get("archive") or {}
         budget = summary.get("budget") or {}
