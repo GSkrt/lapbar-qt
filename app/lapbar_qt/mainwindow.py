@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox,
 
 from lapbar import coach, prefs
 
-from . import chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview, tooltip
+from . import calendarwidget, chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview, tooltip
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
 STRAVA_ORANGE = "#fc4c02"
@@ -127,6 +127,16 @@ class MainWindow(QMainWindow):
         self.ride_title.setFont(title_font)
         ride_box_layout.addWidget(self.ride_title)
 
+        # Shown only once a calendar day other than "today" has been picked (docs/help.md item 1: "After
+        # you pick another day in the calendar, a Back to latest activity link appears here").
+        self.back_to_latest_link = QLabel('<a href="back">← Back to latest activity</a>')
+        self.back_to_latest_link.setTextFormat(Qt.TextFormat.RichText)
+        self.back_to_latest_link.linkActivated.connect(self._on_back_to_latest)
+        self.back_to_latest_link.hide()
+        ride_box_layout.addWidget(self.back_to_latest_link)
+        self._real_latest: dict = {}
+        self._selected_activity: dict | None = None
+
         # A link, not plain text: clicking it opens the details window (comments, records, kudos) for the
         # ride currently shown -- linkActivated fires on click without actually opening a URL.
         self.kudos_line = QLabel("")
@@ -169,6 +179,10 @@ class MainWindow(QMainWindow):
         self.storage_line.setWordWrap(True)
         self.storage_line.setStyleSheet("color: gray;")
         ride_box_layout.addWidget(self.storage_line)
+
+        self.calendar_panel = calendarwidget.CalendarPanel()
+        self.calendar_panel.daySelected.connect(self._on_day_selected)
+        left_col.addWidget(self.calendar_panel)
         left_col.addStretch(1)
 
         self.load_line = QLabel("")
@@ -245,47 +259,9 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(dict)
     def update_summary(self, summary: dict):
-        latest = summary.get("latest") or {}
-        self._latest_id = latest.get("id")
-        self._latest_url = latest.get("url")
-        self.route_preview.set_route(latest.get("route"))
-        if latest.get("name"):
-            self.ride_title.setText(f"{latest['name']}  ·  {tooltip.sport_name(latest.get('sport'))}")
-        else:
-            self.ride_title.setText("No recent activity")
-
-        if latest:
-            kudos, prs, comments = latest.get("kudos", 0), latest.get("prs", 0), latest.get("comments", 0)
-            # Same icons detailswindow.py already uses per record kind (docs/help.md's own words: "a medal
-            # for a personal record, a cup for a top-10 place"); 💬 for comments is the standard icon.
-            text = (f"\U0001f44d {kudos}  ·  \U0001f3c5 {prs}  ·  \U0001f4ac {comments}")
-            # Qt's rich-text engine does not actually honor "color: inherit" on an <a> tag -- it falls back
-            # to a hardcoded, near-invisible default on a dark background (verified by rendering both to a
-            # pixmap and comparing pixel colors). The real window text color has to be spelled out.
-            text_color = self.palette().color(QPalette.ColorRole.WindowText).name()
-            self.kudos_line.setText(
-                f'<a href="details" style="color: {text_color}; text-decoration: none;">{text}</a>')
-        else:
-            self.kudos_line.setText("")
-
-        self.strava_button.setEnabled(bool(self._latest_url))
-
-        while self.stats_layout.count():
-            item = self.stats_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        for row, (label, value) in enumerate(_stat_cells(latest)):
-            label_widget = QLabel(label + ":")
-            label_font = label_widget.font()
-            label_font.setPointSize(label_font.pointSize() + 1)
-            label_widget.setFont(label_font)
-            value_widget = QLabel(value)
-            value_font = value_widget.font()
-            value_font.setPointSize(value_font.pointSize() + 3)
-            value_font.setBold(True)
-            value_widget.setFont(value_font)
-            self.stats_layout.addWidget(label_widget, row, 0)
-            self.stats_layout.addWidget(value_widget, row, 1)
+        self._real_latest = summary.get("latest") or {}
+        self.calendar_panel.set_summary(summary)
+        self._render_activity(self._selected_activity or self._real_latest)
 
         archive = summary.get("archive") or {}
         budget = summary.get("budget") or {}
@@ -320,6 +296,61 @@ class MainWindow(QMainWindow):
 
         for period in ("today", "week", "month", "year"):
             self.totals_labels[period].setText(_totals_line(summary.get(period)))
+
+    def _render_activity(self, activity: dict):
+        """Fills in everything about "the ride currently shown" -- title, kudos/records line, route,
+        stats, the Strava/charts buttons. Used both for the real latest activity and for whatever the
+        calendar has picked (Panel.qml's `shown = selected || latest`)."""
+        self._latest_id = activity.get("id")
+        self._latest_url = activity.get("url")
+        self.route_preview.set_route(activity.get("route"))
+        self.back_to_latest_link.setVisible(self._selected_activity is not None)
+        if activity.get("name"):
+            self.ride_title.setText(f"{activity['name']}  ·  {tooltip.sport_name(activity.get('sport'))}")
+        else:
+            self.ride_title.setText("No recent activity")
+
+        if activity:
+            kudos, prs, comments = activity.get("kudos", 0), activity.get("prs", 0), activity.get("comments", 0)
+            # Same icons detailswindow.py already uses per record kind (docs/help.md's own words: "a medal
+            # for a personal record, a cup for a top-10 place"); 💬 for comments is the standard icon.
+            text = f"\U0001f44d {kudos}  ·  \U0001f3c5 {prs}  ·  \U0001f4ac {comments}"
+            # Qt's rich-text engine does not actually honor "color: inherit" on an <a> tag -- it falls back
+            # to a hardcoded, near-invisible default on a dark background (verified by rendering both to a
+            # pixmap and comparing pixel colors). The real window text color has to be spelled out.
+            text_color = self.palette().color(QPalette.ColorRole.WindowText).name()
+            self.kudos_line.setText(
+                f'<a href="details" style="color: {text_color}; text-decoration: none;">{text}</a>')
+        else:
+            self.kudos_line.setText("")
+
+        self.strava_button.setEnabled(bool(self._latest_url))
+
+        while self.stats_layout.count():
+            item = self.stats_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        for row, (label, value) in enumerate(_stat_cells(activity)):
+            label_widget = QLabel(label + ":")
+            label_font = label_widget.font()
+            label_font.setPointSize(label_font.pointSize() + 1)
+            label_widget.setFont(label_font)
+            value_widget = QLabel(value)
+            value_font = value_widget.font()
+            value_font.setPointSize(value_font.pointSize() + 3)
+            value_font.setBold(True)
+            value_widget.setFont(value_font)
+            self.stats_layout.addWidget(label_widget, row, 0)
+            self.stats_layout.addWidget(value_widget, row, 1)
+
+    def _on_day_selected(self, activity: dict):
+        self._selected_activity = activity
+        self._render_activity(activity)
+
+    def _on_back_to_latest(self, _link: str = ""):
+        self._selected_activity = None
+        self.calendar_panel.clear_selection()
+        self._render_activity(self._real_latest)
 
     def _open_on_strava(self):
         if self._latest_url:
