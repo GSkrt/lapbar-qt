@@ -5,17 +5,41 @@ deferred; the "Motivational quotes" tone picker was added alongside notification
 nudges and kudos/comment alerts already fire for real through the reused cli.cmd_fetch, unconditional on
 any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
 """
+import webbrowser
 from datetime import date
+from pathlib import Path
 
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
-from PyQt6.QtWidgets import (QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QMainWindow,
-                             QPushButton, QRadioButton, QVBoxLayout, QWidget)
+from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
+                             QMainWindow, QPushButton, QRadioButton, QVBoxLayout, QWidget)
 
 from lapbar import coach, prefs
 
 from . import chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview, tooltip
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
+STRAVA_ORANGE = "#fc4c02"
+STRAVA_ASSETS = Path(__file__).parent / "assets" / "strava"
+
+
+def _strava_logo_pixmap(height: int = 16) -> QPixmap:
+    """Strava's own "Powered by Strava" logo (unmodified, see assets/strava/NOTICE.md), white on dark
+    themes and black on light ones -- same choice Panel.qml's own credit image makes."""
+    dark = QApplication.instance().styleHints().colorScheme() == Qt.ColorScheme.Dark
+    svg_path = STRAVA_ASSETS / f"api_logo_pwrdBy_strava_horiz_{'white' if dark else 'black'}.svg"
+    renderer = QSvgRenderer(str(svg_path))
+    size = renderer.defaultSize()
+    if not renderer.isValid() or size.height() == 0:
+        return QPixmap()
+    width = round(size.width() * height / size.height())
+    pixmap = QPixmap(width, height)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return pixmap
 
 
 class _TryOneWorker(QObject):
@@ -107,23 +131,24 @@ class MainWindow(QMainWindow):
         self.route_preview = routepreview.RoutePreview()
         left_col.addWidget(self.route_preview)
 
-        self.strava_link = QLabel("")
-        self.strava_link.setTextFormat(Qt.TextFormat.RichText)
-        self.strava_link.setOpenExternalLinks(True)
-        left_col.addWidget(self.strava_link)
-
-        self.stats_box = QGroupBox("This ride")
-        stats_outer = QVBoxLayout(self.stats_box)
-        self.stats_layout = QGridLayout()
-        stats_outer.addLayout(self.stats_layout)
-        charts_row = QHBoxLayout()
-        charts_row.addStretch(1)
+        # Both buttons right under the route/overview graphics, not one as a text link elsewhere and the
+        # other buried inside the stats box.
+        overview_buttons = QHBoxLayout()
+        self.strava_button = QPushButton("View on Strava")
+        self.strava_button.setStyleSheet(
+            f"QPushButton {{ background-color: {STRAVA_ORANGE}; color: white; font-weight: bold; }}"
+            f"QPushButton:disabled {{ background-color: palette(button); color: palette(disabled-text); }}")
+        self.strava_button.clicked.connect(self._open_on_strava)
+        overview_buttons.addWidget(self.strava_button)
         self.charts_button = QPushButton("Open charts")
         self.charts_button.clicked.connect(self._open_charts)
-        charts_row.addWidget(self.charts_button)
-        stats_outer.addLayout(charts_row)
-        left_col.addWidget(self.stats_box)
+        overview_buttons.addWidget(self.charts_button)
+        left_col.addLayout(overview_buttons)
         self._charts_window: chartswindow.ChartsWindow | None = None
+
+        self.stats_box = QGroupBox("This ride")
+        self.stats_layout = QGridLayout(self.stats_box)
+        left_col.addWidget(self.stats_box)
 
         self.storage_line = QLabel("")
         self.storage_line.setWordWrap(True)
@@ -193,8 +218,13 @@ class MainWindow(QMainWindow):
 
         footer_row = QHBoxLayout()
         footer_row.addStretch(1)
-        footer = QLabel("Powered by Strava")
-        footer.setStyleSheet("color: gray;")
+        footer = QLabel()
+        pixmap = _strava_logo_pixmap()
+        if not pixmap.isNull():
+            footer.setPixmap(pixmap)
+        else:
+            footer.setText("Powered by Strava")  # the SVG asset is missing; a plain label is still correct
+            footer.setStyleSheet("color: gray;")
         footer_row.addWidget(footer)
         outer.addLayout(footer_row)
 
@@ -217,10 +247,7 @@ class MainWindow(QMainWindow):
         else:
             self.kudos_line.setText("")
 
-        if self._latest_url:
-            self.strava_link.setText(f'<a href="{self._latest_url}">View on Strava</a>')
-        else:
-            self.strava_link.setText("")
+        self.strava_button.setEnabled(bool(self._latest_url))
 
         while self.stats_layout.count():
             item = self.stats_layout.takeAt(0)
@@ -263,6 +290,10 @@ class MainWindow(QMainWindow):
 
         for period in ("today", "week", "month", "year"):
             self.totals_labels[period].setText(_totals_line(summary.get(period)))
+
+    def _open_on_strava(self):
+        if self._latest_url:
+            webbrowser.open(self._latest_url)
 
     def _open_details(self, _link: str):
         if self._latest_id is None:
