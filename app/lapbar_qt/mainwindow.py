@@ -213,6 +213,7 @@ class MainWindow(QMainWindow):
 
         self.quotes_box = QGroupBox("Motivational quotes")
         quotes_layout = QVBoxLayout(self.quotes_box)
+        tone_row = QHBoxLayout()
         self._tone_group = QButtonGroup(self.quotes_box)
         self._tone_radios: dict[str, QRadioButton] = {}
         current_tone = prefs.load()["coach_tone"]
@@ -222,7 +223,8 @@ class MainWindow(QMainWindow):
             radio.toggled.connect(lambda checked, t=tone_id: checked and self._set_tone(t))
             self._tone_group.addButton(radio)
             self._tone_radios[tone_id] = radio
-            quotes_layout.addWidget(radio)
+            tone_row.addWidget(radio)
+        quotes_layout.addLayout(tone_row)
         try_row = QHBoxLayout()
         try_row.addStretch(1)
         self.try_one_button = QPushButton("Try one ↗")
