@@ -1,15 +1,32 @@
 """Compact fitness/fatigue/form preview for the main window, matching Panel.qml's FitnessPlot.qml: fitness
-and fatigue as lines on top, form as green/orange bars underneath (tomorrow's as an outline), a small fixed
-height, no zoom/pan (it's a static preview -- docs/help.md describes it as part of the popup itself: "a
-plain-words status and the plot. Hover any day."). The full, interactive, linked-crosshair version with
-min/max and a Load row lives in fitnesschartwindow.py, behind the "Open chart" button next to this.
+and fatigue as lines on top, form as green/orange bars underneath (tomorrow's as an outline), no zoom/pan
+(it's a static preview -- docs/help.md describes it as part of the popup itself: "a plain-words status and
+the plot. Hover any day."). The full, interactive, linked-crosshair version with min/max and a Load row
+lives in fitnesschartwindow.py, behind the "Open chart" button next to this.
+
+Sized to the window, not fixed: a minimum height keeps it legible, but an Expanding size policy plus a
+resizeEvent that rescales the axis tick font with the widget's actual height means it genuinely grows or
+shrinks along with the main window instead of leaving dead space (or clipping) at a fixed size.
 """
 import bisect
 from datetime import datetime, timezone
 
 import pyqtgraph as pg
 from PyQt6.QtCore import QEvent, pyqtSignal
-from PyQt6.QtWidgets import QVBoxLayout, QWidget
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
+
+MIN_HEIGHT = 90
+
+
+def _tick_font_for(row_height: float) -> QFont:
+    """Scaled to one subplot's own share of the widget's height (there are two, stacked), not the whole
+    widget -- using the raw widget height saturated at the font ceiling almost immediately, since even a
+    fairly small widget is much taller than a legible tick label."""
+    font = QFont()
+    font.setPointSize(max(6, min(14, round(row_height * 0.05))))
+    return font
+
 
 pg.setConfigOptions(antialias=True)
 
@@ -29,7 +46,8 @@ class FitnessMiniPlot(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setFixedHeight(160)
+        self.setMinimumHeight(MIN_HEIGHT)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._plot_widget = pg.GraphicsLayoutWidget()
@@ -93,6 +111,19 @@ class FitnessMiniPlot(QWidget):
             self._plots.append(plot)
             self._vlines.append(vline)
         self._plot_widget.scene().sigMouseMoved.connect(self._on_mouse_moved)
+        self._apply_tick_font()
+
+    def _apply_tick_font(self):
+        if not self._plots:
+            return
+        font = _tick_font_for(self.height() / len(self._plots))
+        for plot in self._plots:
+            plot.getAxis("left").setStyle(tickFont=font)
+            plot.getAxis("bottom").setStyle(tickFont=font)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._apply_tick_font()
 
     def leaveEvent(self, event):
         for vline in self._vlines:

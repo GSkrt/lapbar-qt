@@ -207,7 +207,7 @@ class MainWindow(QMainWindow):
         self.fitness_chart_button.clicked.connect(self._open_fitness_chart)
         fitness_chart_row.addWidget(self.fitness_chart_button)
         fitness_layout.addLayout(fitness_chart_row)
-        right_col.addWidget(self.fitness_box)
+        right_col.addWidget(self.fitness_box, stretch=1)
         self._latest_fitness: dict | None = None
         self._fitness_chart_window: fitnesschartwindow.FitnessChartWindow | None = None
 
@@ -243,7 +243,8 @@ class MainWindow(QMainWindow):
             totals_layout.addWidget(value_label, row, 1)
             self.totals_labels[period] = value_label
         right_col.addWidget(self.totals_box)
-        right_col.addStretch(1)
+        # No trailing stretch here: fitness_box (stretch=1 above) is what should absorb extra vertical
+        # space when the window is enlarged, growing the fitness plot with it, not an invisible spacer.
 
         footer_row = QHBoxLayout()
         footer_row.addStretch(1)
