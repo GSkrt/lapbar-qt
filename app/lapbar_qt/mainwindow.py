@@ -224,14 +224,12 @@ class MainWindow(QMainWindow):
             self._tone_group.addButton(radio)
             self._tone_radios[tone_id] = radio
             tone_row.addWidget(radio)
-        quotes_layout.addLayout(tone_row)
-        try_row = QHBoxLayout()
-        try_row.addStretch(1)
+        tone_row.addStretch(1)
         self.try_one_button = QPushButton("Try one ↗")
         self.try_one_button.setEnabled(current_tone != "off")
         self.try_one_button.clicked.connect(self._try_one)
-        try_row.addWidget(self.try_one_button)
-        quotes_layout.addLayout(try_row)
+        tone_row.addWidget(self.try_one_button)
+        quotes_layout.addLayout(tone_row)
         right_col.addWidget(self.quotes_box)
         self._try_one_thread: QThread | None = None
         self._try_one_worker: _TryOneWorker | None = None
