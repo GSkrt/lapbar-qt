@@ -136,3 +136,39 @@ def test_the_data_window_has_the_export_controls_and_describes_the_database(qapp
     assert {t["table"] for t in manage.status()["schema"]} <= boxes                # every table is described
     assert window.windowTitle() == "LapBar · Data"
     window.close()
+
+
+def test_text_from_strava_is_never_read_as_markup(qapp, monkeypatch):
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QLabel
+    from lapbar import platforms
+    from lapbar_qt import branding, mainwindow, notifications
+    sneaky = "<b>Ride</b> <a href='https://evil.example'>x</a>"
+    main = mainwindow.MainWindow()
+    summary = _summary()
+    summary["latest"]["name"] = sneaky
+    main.update_summary(summary)
+    assert main.ride_title.textFormat() == Qt.TextFormat.PlainText and sneaky in main.ride_title.text()
+    header = branding.header("Activity metrics", sneaky)
+    assert all(label.textFormat() == Qt.TextFormat.PlainText for label in header.findChildren(QLabel)
+               if sneaky in label.text())
+    monkeypatch.setattr(platforms, "IS_WINDOWS", False)
+    monkeypatch.setattr(platforms, "IS_MAC", False)            # Linux: notifications render markup
+    assert notifications.body_text(sneaky) == "&lt;b&gt;Ride&lt;/b&gt; &lt;a href='https://evil.example'&gt;x&lt;/a&gt;"
+    assert "<" not in notifications.plain_line(sneaky) and ">" not in notifications.plain_line(sneaky)
+    monkeypatch.setattr(platforms, "IS_WINDOWS", True)         # Windows: plain text, shown as it is
+    assert notifications.body_text(sneaky) == sneaky and notifications.plain_line(sneaky) == sneaky
+    main.close()
+
+
+def test_the_tray_escapes_what_it_shows_on_linux(qapp, monkeypatch):
+    from lapbar import platforms
+    from lapbar_qt import notifications
+    monkeypatch.setattr(platforms, "IS_WINDOWS", False)
+    monkeypatch.setattr(platforms, "IS_MAC", False)
+    tray = QSystemTrayIcon()
+    shown = []
+    monkeypatch.setattr(tray, "showMessage", lambda title, body, icon, ms: shown.append((title, body)))
+    notifications.TrayNotifier(tray).present("comments", "Eve <i>X</i>", "<b>hi</b> & bye", None)
+    _drain(qapp)
+    assert shown == [("Eve ‹i›X‹/i›", "&lt;b&gt;hi&lt;/b&gt; &amp; bye")]

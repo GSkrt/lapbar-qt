@@ -104,6 +104,7 @@ class MainWindow(QMainWindow):
         left_col.addWidget(self.ride_box)
 
         self.ride_title = QLabel("Loading…")
+        self.ride_title.setTextFormat(Qt.TextFormat.PlainText)   # an activity's own title: never read as markup
         self.ride_title.setWordWrap(True)
         title_font = self.ride_title.font()
         title_font.setPointSize(title_font.pointSize() + 5)

@@ -167,7 +167,9 @@ def main() -> int:
     menu.addAction(quit_action)
     tray.setContextMenu(menu)
 
-    thread, fetch_worker = worker.start_background_refresh(tray.setToolTip, open_setup, main_window.update_summary)
+    # The tooltip carries an activity's name; on Linux the tray host may render it as markup.
+    thread, fetch_worker = worker.start_background_refresh(lambda text: tray.setToolTip(notifications.plain_line(text)),
+                                                           open_setup, main_window.update_summary)
     fetch_worker.summaryReady.connect(track_summary)
 
     def shutdown():
