@@ -102,3 +102,16 @@ def test_a_real_refresh_fills_the_main_window_and_draws_the_fitness_plot(qapp):
     assert main.stats_layout.count() > 0       # the ride's stats rows were drawn
     assert main.calendar_panel.calendar.archived_keys == {main.calendar_panel._today.isoformat()}
     main.close()
+
+
+def test_the_week_panel_shows_where_you_stand_and_switches_metric(qapp):
+    from lapbar_qt import mainwindow
+    main = mainwindow.MainWindow()
+    main.update_summary(_summary())
+    panel = main.week_panel
+    assert "last week" in panel.headline.text()
+    keys = [panel.metric_box.itemData(i) for i in range(panel.metric_box.count())]
+    assert keys == ["time", "distance", "climb"]                # no Relative Effort in this summary
+    panel.metric_box.setCurrentIndex(1)
+    assert panel.current_metric() == "distance" and "km" in panel.detail.text()
+    main.close()

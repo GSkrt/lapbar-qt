@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox,
 from lapbar import coach, prefs
 
 from . import (branding, calendarwidget, chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview,
-               tooltip)
+               tooltip, weekpanel)
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
 STRAVA_ORANGE = "#fc4c02"
@@ -169,9 +169,8 @@ class MainWindow(QMainWindow):
         left_col.addWidget(self.calendar_panel)
         left_col.addStretch(1)
 
-        self.load_line = QLabel("")
-        self.load_line.setWordWrap(True)
-        right_col.addWidget(self.load_line)
+        self.week_panel = weekpanel.WeekComparePanel()
+        right_col.addWidget(self.week_panel)
 
         self.fitness_box = QGroupBox("Fitness, fatigue and form")
         fitness_layout = QVBoxLayout(self.fitness_box)
@@ -259,7 +258,7 @@ class MainWindow(QMainWindow):
         else:
             self.storage_line.setText("")
 
-        self.load_line.setText(tooltip.load_headline(summary.get("load")) or "No training last week to compare")
+        self.week_panel.set_summary(summary)
 
         fitness = summary.get("fitness") or {}
         self._latest_fitness = fitness

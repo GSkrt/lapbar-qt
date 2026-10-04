@@ -6,6 +6,8 @@ setting today), so this always uses Panel.qml's own default, "time".
 """
 from datetime import datetime, timezone
 
+from . import weekcompare
+
 FITNESS_STATUS_NAME = {
     "starting": "Getting started", "very_fresh": "Very fresh", "fresh": "Fresh", "balanced": "Balanced",
     "building": "Building", "overreaching": "Very tired",
@@ -35,30 +37,15 @@ def fmt_duration(seconds: float) -> str:
     return f"{h}h {m:02d}m" if h > 0 else f"{m} min"
 
 
-def fmt_load(v: float, load_metric_effective: str) -> str:
-    if load_metric_effective == "distance":
-        return f"{v:.1f} km"
-    if load_metric_effective == "effort":
-        return f"{round(v)} effort"
-    return fmt_duration(v)
+def load_headline(summary: dict | None, now: datetime | None = None) -> str:
+    """Time this week so far against last week at the same moment (weekcompare.py does the work).
 
-
-def load_metric_effective(load_info: dict | None, load_metric: str = "time") -> str:
-    has_effort = bool(load_info and load_info.get("has_effort"))
-    if load_metric == "effort" and has_effort:
-        return "effort"
-    return "distance" if load_metric == "distance" else "time"
-
-
-def load_headline(info: dict | None) -> str:
-    if not info or info.get("state") == "idle":
+    The backend's own `load` block has no ahead/behind state -- Panel.qml worked that out in QML -- so reading
+    one from it always came out as "0 min behind"."""
+    if not summary or not summary.get("activities"):
         return ""
-    if info.get("state") == "even":
-        return "On par with last week"
-    metric = load_metric_effective(info)
-    delta = fmt_load(abs(info.get("delta", 0)), metric)
-    direction = "ahead of" if info.get("state") == "ahead" else "behind"
-    return f"{delta} {direction} last week at this point"
+    result = weekcompare.compare(summary["activities"], "time", now or datetime.now())
+    return "" if result["state"] == "idle" else weekcompare.headline(result, "time")
 
 
 def budget_line(budget: dict | None) -> str:
@@ -99,7 +86,7 @@ def build_tooltip(summary: dict | None, error: dict | None = None) -> str:
     if latest:
         lines.append(f"{kudos} {'kudo' if kudos == 1 else 'kudos'}  ·  {prs} {'PR' if prs == 1 else 'PRs'}")
 
-    headline = load_headline(summary.get("load"))
+    headline = load_headline(summary)
     if headline:
         lines.append(headline)
 
