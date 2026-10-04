@@ -65,8 +65,7 @@ def _load_state() -> dict:
 
 
 def _save_state(state: dict) -> None:
-    config.private_dir(_state_path().parent)
-    _state_path().write_text(json.dumps(state), encoding="utf-8")
+    config.write_private(_state_path(), json.dumps(state))
 
 
 def facts(summary: dict, now: datetime, marked: dict | None = None) -> dict:
@@ -241,13 +240,19 @@ def deliver(event: dict, day: str | None = None) -> None:
     """Show a popup without holding anything up: a detached process shows it and records a button press.
 
     When an app has installed a presenter (popups.py), it shows the popup itself instead (without the excuse
-    buttons, which a tray message cannot carry)."""
+    buttons, which a tray message cannot carry).
+
+    The payload goes on the child's stdin, not as a --deliver=<JSON> argument: a command-line argument
+    sits in the process table (`ps`, /proc/<pid>/cmdline) for anyone on the machine to read for as long as
+    the process runs, which here is until the notification is dismissed."""
     if popups.presenter is not None:
         popups.presenter("coach", event["title"], event["body"], None)
         return
     payload = json.dumps({"event": event, "day": day or date.today().isoformat()})
-    subprocess.Popen([*platforms.cli_command(), "coach", "--deliver", payload], stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **platforms.detached())
+    proc = subprocess.Popen([*platforms.cli_command(), "coach", "--deliver"], stdin=subprocess.PIPE,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **platforms.detached())
+    proc.stdin.write(payload.encode())
+    proc.stdin.close()
 
 
 def sample(tone: str, kind: str = "random") -> dict:
