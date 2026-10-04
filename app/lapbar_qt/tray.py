@@ -27,6 +27,7 @@ def main() -> int:
         print("No system tray available on this desktop.", file=sys.stderr)
         return 1
 
+    app.setWindowIcon(QIcon(str(ICON_PATH)))     # every window's title bar and taskbar entry, not just the tray
     tray = QSystemTrayIcon(QIcon(str(ICON_PATH)))
     tray.setToolTip("lapbar-qt · Loading…")
 

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 512 512"
+   width="512"
+   height="512"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="icon_source.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <rect
+       x="77.498903"
+       y="95.600836"
+       width="360.34161"
+       height="321.87501"
+       id="rect4" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.3125"
+     inkscape:cx="556.8"
+     inkscape:cy="225.6"
+     inkscape:window-width="1251"
+     inkscape:window-height="669"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <rect
+     width="512"
+     height="512"
+     rx="112"
+     fill="#1e2028"
+     id="rect1"
+     style="fill:#e8971f;fill-opacity:1" />
+  <rect
+     width="440.70145"
+     height="440.70145"
+     rx="96.403435"
+     fill="#1e2028"
+     id="rect1-9"
+     x="35.650173"
+     y="35.649277"
+     style="fill:none;stroke:#f2eeee;stroke-width:16.696;stroke-dasharray:16.696,16.696;stroke-dashoffset:0;stroke-opacity:1" />
+  <text
+     xml:space="preserve"
+     id="text4"
+     style="font-size:160px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect4);display:inline;fill:#ffffff;fill-opacity:1;stroke:none;stroke-opacity:1"
+     transform="matrix(2.1851205,0,0,2.1851205,-91.837241,-153.02366)"><tspan
+       x="77.498047"
+       y="241.18159"
+       id="tspan3"><tspan
+         style="font-weight:bold"
+         id="tspan1">L</tspan><tspan
+         style="font-weight:bold;font-size:98.9812px;fill:#000000"
+         id="tspan2">B</tspan></tspan></text>
+</svg>
