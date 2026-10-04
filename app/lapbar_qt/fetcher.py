@@ -53,7 +53,7 @@ def chart_data_for(activity_id: int) -> dict:
         activity = cli._activity_for(activity_id, token)
         path = streams.detail(activity)
         if path is not None:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         data = streams.get(token, activity, refresh=False)
     except (auth.NotConfigured, auth.NotAuthorized, vault.VaultUnavailable, ratelimit.BudgetExhausted,
             HttpError, OSError) as e:

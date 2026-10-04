@@ -32,7 +32,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, excuses, prefs, system
+from . import config, excuses, popups, prefs, system
 
 MODES = ("off", "motivational", "drill")
 TONES = ("motivational", "drill")
@@ -51,7 +51,7 @@ POPUP_MS = 20000
 
 
 def messages() -> dict:
-    return json.loads((Path(__file__).resolve().parent / "messages" / "en.json").read_text())
+    return json.loads((Path(__file__).resolve().parent / "messages" / "en.json").read_text(encoding="utf-8"))
 
 
 def _state_path():
@@ -60,14 +60,14 @@ def _state_path():
 
 def _load_state() -> dict:
     try:
-        return json.loads(_state_path().read_text())
+        return json.loads(_state_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
 
 def _save_state(state: dict) -> None:
     config.private_dir(_state_path().parent)
-    _state_path().write_text(json.dumps(state))
+    _state_path().write_text(json.dumps(state), encoding="utf-8")
 
 
 def facts(summary: dict, now: datetime, marked: dict | None = None) -> dict:
@@ -239,7 +239,13 @@ def show(event: dict, day: str, timeout_ms: int = POPUP_MS) -> str | None:
 
 
 def deliver(event: dict, day: str | None = None) -> None:
-    """Show a popup without holding anything up: a detached process shows it and records a button press."""
+    """Show a popup without holding anything up: a detached process shows it and records a button press.
+
+    When an app has installed a presenter (popups.py), it shows the popup itself instead (without the excuse
+    buttons, which a tray message cannot carry)."""
+    if popups.presenter is not None:
+        popups.presenter("coach", event["title"], event["body"], None)
+        return
     launcher = Path(__file__).resolve().parent.parent / "bin" / "lapbar"
     payload = json.dumps({"event": event, "day": day or date.today().isoformat()})
     subprocess.Popen([sys.executable, "-I", str(launcher), "coach", "--deliver", payload], stdin=subprocess.DEVNULL,

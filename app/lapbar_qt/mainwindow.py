@@ -6,10 +6,9 @@ nudges and kudos/comment alerts already fire for real through the reused cli.cmd
 any UI here; this is just the control to opt into the coach, matching Panel.qml's own radio + Try one).
 """
 import webbrowser
-from datetime import date
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QPainter, QPalette, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox, QHBoxLayout, QLabel,
@@ -17,7 +16,8 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox,
 
 from lapbar import coach, prefs
 
-from . import calendarwidget, chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview, tooltip
+from . import (branding, calendarwidget, chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview,
+               tooltip)
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
 STRAVA_ORANGE = "#fc4c02"
@@ -42,54 +42,6 @@ def _strava_logo_pixmap(height: int = 16) -> QPixmap:
     return pixmap
 
 
-class _TryOneWorker(QObject):
-    finished = pyqtSignal()
-
-    def __init__(self, tone: str):
-        super().__init__()
-        self.tone = tone
-
-    @pyqtSlot()
-    def run(self):
-        try:
-            event = coach.sample(self.tone)
-            coach.show(event, date.today().isoformat(), timeout_ms=8000)
-        except Exception:  # noqa: BLE001 - a preview popup failing must never take the app down with it
-            pass
-        self.finished.emit()
-
-
-def _stat_cells(latest: dict) -> list[tuple[str, str]]:
-    """Which numbers matter depends on the sport, same as Panel.qml's statCells: pace where people think in
-    pace, speed and power for cycling, time only for sessions without distance (gym, yoga...)."""
-    cells = []
-    if latest.get("distance_km", 0) > 0:
-        km = latest["distance_km"]
-        cells.append(("Distance", f"{km:.1f} km" if km >= 10 else f"{km:.2f} km"))
-    cells.append(("Time", tooltip.fmt_duration(latest.get("moving_time_s", 0))))
-    if latest.get("elevation_m", 0) > 0:
-        cells.append(("Climb", f"{latest['elevation_m']} m"))
-    if latest.get("pace_s"):
-        m, s = divmod(int(latest["pace_s"]), 60)
-        cells.append(("Pace", f"{m}:{s:02d} /{latest['pace_unit']}"))
-    elif latest.get("avg_speed_kmh"):
-        cells.append(("Speed", f"{latest['avg_speed_kmh']} km/h"))
-    if latest.get("avg_watts"):
-        cells.append(("Power", f"{round(latest['avg_watts'])} W"))
-    if latest.get("avg_heartrate"):
-        cells.append(("Heart rate", f"{latest['avg_heartrate']} bpm"))
-    if latest.get("avg_cadence"):
-        cells.append(("Cadence", f"{latest['avg_cadence']} {latest.get('cadence_unit', '')}"))
-    return cells
-
-
-def _totals_line(period: dict | None) -> str:
-    if not period or not period.get("count"):
-        return "—"
-    return (f"{period['count']} · {tooltip.fmt_duration(period['moving_time_s'])} · "
-            f"{period['distance_km']:.1f} km · {period['elevation_m']} m climb")
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -99,6 +51,7 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         outer = QVBoxLayout(central)
+        outer.addWidget(branding.logo_label())
 
         # Two columns side by side, same shape as Panel.qml's leftCol/rightCol: the ride itself on the
         # left, fitness/training/quotes on the right. "Powered by Strava" sits below both, right-aligned,
@@ -207,7 +160,7 @@ class MainWindow(QMainWindow):
         self.fitness_chart_button.clicked.connect(self._open_fitness_chart)
         fitness_chart_row.addWidget(self.fitness_chart_button)
         fitness_layout.addLayout(fitness_chart_row)
-        right_col.addWidget(self.fitness_box, stretch=1)
+        right_col.addWidget(self.fitness_box)
         self._latest_fitness: dict | None = None
         self._fitness_chart_window: fitnesschartwindow.FitnessChartWindow | None = None
 
@@ -231,8 +184,6 @@ class MainWindow(QMainWindow):
         tone_row.addWidget(self.try_one_button)
         quotes_layout.addLayout(tone_row)
         right_col.addWidget(self.quotes_box)
-        self._try_one_thread: QThread | None = None
-        self._try_one_worker: _TryOneWorker | None = None
 
         self.totals_box = QGroupBox("Totals")
         totals_layout = QGridLayout(self.totals_box)
@@ -243,8 +194,9 @@ class MainWindow(QMainWindow):
             totals_layout.addWidget(value_label, row, 1)
             self.totals_labels[period] = value_label
         right_col.addWidget(self.totals_box)
-        # No trailing stretch here: fitness_box (stretch=1 above) is what should absorb extra vertical
-        # space when the window is enlarged, growing the fitness plot with it, not an invisible spacer.
+        # The fitness plot is capped (fitnessminiplot.MAX_HEIGHT), so leftover vertical space goes here
+        # instead of padding out the fitness box.
+        right_col.addStretch(1)
 
         footer_row = QHBoxLayout()
         footer_row.addStretch(1)
@@ -394,18 +346,6 @@ class MainWindow(QMainWindow):
         tone = next((t for t, radio in self._tone_radios.items() if radio.isChecked()), "motivational")
         if tone == "off":
             return
-        self.try_one_button.setEnabled(False)
-        self._try_one_thread = QThread()
-        self._try_one_worker = _TryOneWorker(tone)
-        self._try_one_worker.moveToThread(self._try_one_thread)
-        self._try_one_worker.finished.connect(self._on_try_one_finished)
-        # DirectConnection: see detailswindow.py -- quit() is thread-safe, and this must not wait for the
-        # main thread's event loop or the thread could still be "running" when this window is destroyed.
-        self._try_one_worker.finished.connect(self._try_one_thread.quit, Qt.ConnectionType.DirectConnection)
-        self._try_one_thread.started.connect(self._try_one_worker.run)
-        self._try_one_thread.start()
-
-    def _on_try_one_finished(self):
-        self._try_one_thread.quit()
-        self._try_one_thread.wait()
-        self.try_one_button.setEnabled(True)
+        # Shown by the tray icon (notifications.py) through the same path real nudges take; sample() has no
+        # buttons, so trying a tone records nothing.
+        coach.deliver(coach.sample(tone))

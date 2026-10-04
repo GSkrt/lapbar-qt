@@ -1,6 +1,7 @@
 """Older years for the calendar: downloaded once, stored, merged into the calendar's day totals."""
 import json
 import re
+import sys
 from datetime import datetime
 
 import pytest
@@ -8,6 +9,9 @@ import pytest
 from lapbar import auth, cli, history, ratelimit
 from lapbar.http import HttpError
 from lapbar.providers import strava
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 NOW = datetime(2026, 9, 19, 12)
 
@@ -175,6 +179,7 @@ def test_an_older_activity_can_be_found_by_id(api):
     assert history.find(target["id"])["id"] == target["id"] and history.find(1) is None
 
 
+@posix_modes
 def test_stored_files_are_private(api):
     strava.sync_history("tok", 2026, 1, budget=1)
     assert oct((history._dir() / "2025.json").stat().st_mode & 0o777) == "0o600"

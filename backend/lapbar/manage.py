@@ -5,6 +5,8 @@ Quickshell window itself (open_window(), a subprocess launch) did not carry over
 project README for what still needs a UI here -- but this pure data-aggregation half is unchanged and fully
 tested as-is.
 """
+from pathlib import Path
+
 from . import config, export, fetchlog, history, prefs, ratelimit, raw
 
 

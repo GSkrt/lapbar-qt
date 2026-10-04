@@ -3,17 +3,15 @@ import os
 import shutil
 from pathlib import Path
 
-
-def _xdg(var: str, default: str) -> Path:
-    return Path(os.environ.get(var) or Path.home() / default)
+from . import platforms
 
 
 def state_dir() -> Path:
-    return _xdg("XDG_STATE_HOME", ".local/state") / "lapbar-qt"
+    return platforms.base_dirs()["state"]
 
 
 def cache_path() -> Path:
-    return _xdg("XDG_CACHE_HOME", ".cache") / "lapbar-qt" / "cache.json"
+    return platforms.base_dirs()["cache"] / "cache.json"
 
 
 def data_dir() -> Path:
@@ -22,7 +20,7 @@ def data_dir() -> Path:
     Not the cache folder: everything in there can be thrown away and rebuilt for free, while this costs Strava
     requests to download again. `LAPBAR_DATA_DIR` moves it, for example to another disk."""
     override = os.environ.get("LAPBAR_DATA_DIR")
-    return Path(override) if override else _xdg("XDG_DATA_HOME", ".local/share") / "lapbar-qt"
+    return Path(override) if override else platforms.base_dirs()["data"]
 
 
 def adopt(old: Path, new: Path) -> Path:
@@ -34,7 +32,7 @@ def adopt(old: Path, new: Path) -> Path:
 
 
 def user_env_path() -> Path:
-    return _xdg("XDG_CONFIG_HOME", ".config") / "lapbar-qt" / "env"
+    return platforms.base_dirs()["config"] / "env"
 
 
 def _own_roots() -> tuple[Path, ...]:
@@ -76,7 +74,7 @@ def read_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     if not path.is_file():
         return values
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -87,7 +85,7 @@ def read_env_file(path: Path) -> dict[str, str]:
 
 def write_env_file(path: Path, values: dict[str, str], remove: list[str] = ()) -> None:
     """Update KEY=value lines in place (keeping comments and other keys); file mode 0600."""
-    lines = path.read_text().splitlines() if path.is_file() else []
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
     out, done = [], set()
     for line in lines:
         key = line.partition("=")[0].strip()
@@ -102,7 +100,7 @@ def write_env_file(path: Path, values: dict[str, str], remove: list[str] = ()) -
     private_dir(path.parent)
     tmp = path.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     tmp.replace(path)
 

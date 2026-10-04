@@ -8,12 +8,13 @@ escaped.
 
 A popup is shown by a process of its own, because waiting for the click takes a while.
 """
+import html
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-from . import comments, kudos, system
+from . import comments, kudos, popups, system
 
 ORANGE = "#FC5200"                       # Strava's colour, as its brand guidelines ask for links
 LINK_TEXT = "View on Strava"
@@ -61,7 +62,13 @@ def show(kind: str, event: dict, timeout_ms: int = POPUP_MS) -> str | None:
 
 
 def deliver(kind: str, event: dict) -> None:
-    """Show a popup without holding anything up: a detached process shows it and opens the page on a click."""
+    """Show a popup without holding anything up: a detached process shows it and opens the page on a click.
+
+    When an app has installed a presenter (popups.py), it shows the popup itself instead."""
+    if popups.presenter is not None:
+        n = KINDS[kind](event)
+        popups.presenter(kind, html.unescape(n["title"]), html.unescape(n["body"]), safe_url(n.get("url")))
+        return
     launcher = Path(__file__).resolve().parent.parent / "bin" / "lapbar"
     payload = json.dumps({"kind": kind, "event": event})
     subprocess.Popen([sys.executable, "-I", str(launcher), "alert", "--deliver", payload],

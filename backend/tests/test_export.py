@@ -2,12 +2,16 @@
 import json
 import os
 import stat
+import sys
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from lapbar import cli, config, details, export, fetchlog, history, manage, prefs, raw
 from lapbar.providers import strava
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 
 try:
@@ -47,7 +51,7 @@ def data():
                                     "2025-05-01": {"count": 1, "distance_km": 30.0, "moving_time_s": 3600, "elevation_m": 250, "families": ["ride"]}}, "x")
     config.private_dir(config.cache_path().parent)
     config.cache_path().write_text(json.dumps({"activities": this_year, "days": {**history.merged_days(), **days},
-                                               "kudoers": {"3": ["Ann B.", "Cy D."]}}))
+                                               "kudoers": {"3": ["Ann B.", "Cy D."]}}), encoding="utf-8")
     raw.store(older[1], streams_with_gps())                                  # id 1: with GPS
     raw.store(older[0], {"time": {"data": [0, 1, 2]}, "distance": {"data": [0.0, 5.0, 10.0]}, "watts": {"data": [150, 160, 170]}})   # id 2: indoors
     details._save(1, {"records": {"counts": [1, 2], "items": [
@@ -129,6 +133,7 @@ def test_no_gps_means_no_route():
 
 # ---- the real thing
 
+@posix_modes
 @needs_duckdb
 def test_the_export_joins_basic_ride_data_to_the_spatial_data(data, tmp_path):
     path = tmp_path / "out" / "lapbar.duckdb"
@@ -216,6 +221,7 @@ def test_the_default_path_is_in_the_data_folder_and_a_chosen_path_is_used(data, 
 
 # ---- preferences
 
+@posix_modes
 def test_preferences_default_validate_and_are_private():
     assert prefs.load() == {"history_from": None, "export_path": None, "export_continuous": False, "export_spatial": False,
                               "coach_tone": "off", "coach_random_per_day": 2, "quiet_hours": "22:00-08:00", "coach_pause_until": None,

@@ -59,7 +59,7 @@ def record(headers, now: float | None = None) -> None:
         config.private_dir(_file().parent)
         tmp = _file().with_suffix(".tmp")
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(state, f)
         tmp.replace(_file())
         from . import fetchlog
@@ -77,7 +77,7 @@ def snapshot(now: float | None = None) -> dict:
     """Current usage, with the windows that have since reset counted as unused."""
     now = time.time() if now is None else now
     try:
-        state = json.loads(_file().read_text())
+        state = json.loads(_file().read_text(encoding="utf-8"))
         at, (uq, ud), (lq, ld) = state["at"], state["usage"], state["limit"]
     except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError, TypeError):
         at, uq, ud, (lq, ld) = None, 0, 0, DEFAULT_LIMITS

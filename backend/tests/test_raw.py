@@ -1,6 +1,7 @@
 """The raw archive: the complete streams (GPS included) are kept once, and everything else is made from them."""
 import gzip
 import json
+import sys
 from datetime import datetime
 
 import pytest
@@ -8,6 +9,9 @@ import pytest
 from lapbar import auth, cli, config, history, raw, ratelimit, setup, streams
 from lapbar.http import HttpError
 from lapbar.providers import strava
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 STREAMS = {
     "time": {"data": [0, 1, 2, 3]},
@@ -44,6 +48,7 @@ def api(monkeypatch):
 
 # ---- the archive itself
 
+@posix_modes
 def test_the_streams_are_kept_complete_and_compressed_in_a_private_folder_per_year():
     raw.store(act(7), STREAMS)
     path = raw.path_for(act(7))
@@ -207,7 +212,7 @@ def test_the_data_folder_can_be_moved_with_an_environment_variable(monkeypatch, 
 def test_older_years_and_records_kept_in_the_cache_by_an_earlier_version_are_moved_over():
     old = config.cache_path().parent / "history"
     old.mkdir(parents=True)
-    (old / "index.json").write_text(json.dumps({"v": 1, "years": {"2019": {"count": 1, "days": {"2019-01-01": {"count": 1}}}}, "complete": True}))
+    (old / "index.json").write_text(json.dumps({"v": 1, "years": {"2019": {"count": 1, "days": {"2019-01-01": {"count": 1}}}}, "complete": True}), encoding="utf-8")
     assert history.index()["years"]["2019"]["count"] == 1
     assert not old.exists() and (config.data_dir() / "history" / "index.json").is_file()
 

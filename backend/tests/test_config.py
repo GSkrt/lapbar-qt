@@ -7,10 +7,14 @@ write under a fresh XDG base (e.g. the very first activity a new install archive
 umask allowed, even though the deepest folder came out correctly locked down.
 """
 import os
+import sys
 
 import pytest
 
 from lapbar import config
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +25,7 @@ def loose_umask():
     os.umask(old)
 
 
+@posix_modes
 def test_every_level_created_along_the_way_is_locked_down(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
     target = config.data_dir() / "raw" / "2026"          # three new levels: lapbar-qt/, raw/, 2026/
@@ -29,6 +34,7 @@ def test_every_level_created_along_the_way_is_locked_down(tmp_path, monkeypatch)
         assert oct(os.stat(level).st_mode & 0o777) == "0o700", level
 
 
+@posix_modes
 def test_the_shared_xdg_base_itself_is_never_touched(tmp_path, monkeypatch):
     base = tmp_path / "share"
     base.mkdir(mode=0o755)
@@ -37,6 +43,7 @@ def test_the_shared_xdg_base_itself_is_never_touched(tmp_path, monkeypatch):
     assert oct(os.stat(base).st_mode & 0o777) == "0o755"                    # other apps live here too
 
 
+@posix_modes
 def test_an_already_existing_top_level_directory_from_before_this_fix_is_repaired(tmp_path, monkeypatch):
     base = tmp_path / "share"
     top = base / "lapbar-qt"
@@ -47,6 +54,7 @@ def test_an_already_existing_top_level_directory_from_before_this_fix_is_repaire
     assert oct(os.stat(top).st_mode & 0o777) == "0o700"
 
 
+@posix_modes
 def test_each_of_lapbars_own_roots_is_repaired_regardless_of_which_one_a_call_targets(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
@@ -63,6 +71,7 @@ def test_each_of_lapbars_own_roots_is_repaired_regardless_of_which_one_a_call_ta
         assert oct(os.stat(top).st_mode & 0o777) == "0o700", top
 
 
+@posix_modes
 def test_a_custom_lapbar_data_dir_is_secured_without_reaching_above_it(tmp_path, monkeypatch):
     outside = tmp_path / "external-drive"          # stands in for a mount point LapBar must never touch
     outside.mkdir(mode=0o755)
@@ -72,6 +81,7 @@ def test_a_custom_lapbar_data_dir_is_secured_without_reaching_above_it(tmp_path,
     assert oct(os.stat(outside).st_mode & 0o777) == "0o755"               # untouched: not LapBar's to secure
 
 
+@posix_modes
 def test_already_correct_permissions_are_left_alone_without_erroring(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "share"))
     target = config.data_dir() / "details"

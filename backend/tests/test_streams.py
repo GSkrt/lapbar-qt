@@ -1,11 +1,15 @@
 import json
 import os
 import stat
+import sys
 
 import pytest
 
 from lapbar import config, streams
 from lapbar.http import HttpError
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 RIDE = {"id": 1, "name": "Evening Ride", "sport": "Ride", "family": "ride", "start": "2026-09-18T18:56:50Z",
         "distance_km": 10.0}
@@ -170,6 +174,7 @@ def test_other_errors_are_not_remembered_and_propagate(monkeypatch):
     assert not streams.path_for(1).exists()          # so it is tried again later
 
 
+@posix_modes
 def test_stored_files_are_private():
     streams._store(7, {"x": 1})
     assert stat.S_IMODE(os.stat(streams.path_for(7)).st_mode) == 0o600
@@ -211,7 +216,7 @@ def test_elevation_profile_for_the_popup_is_derived_from_the_stored_series():
 
 def test_json_written_for_the_chart_window_is_plain_and_complete():
     streams.get("tok", RIDE) if False else streams._store(1, streams.build(RIDE, raw_ride(300)))
-    doc = json.loads(streams.path_for(1).read_text())
+    doc = json.loads(streams.path_for(1).read_text(encoding="utf-8"))
     assert {"id", "name", "x", "series", "points", "distance_km"} <= set(doc)
 
 
@@ -281,7 +286,7 @@ def test_detail_is_made_from_the_archive_without_a_request_and_only_the_latest_a
         act = {**RIDE, "id": i}
         archive.store(act, noisy_ride(300))
         path = streams.detail(act)
-        assert path == streams.detail_path(i) and json.loads(path.read_text())["points"] == 300
+        assert path == streams.detail_path(i) and json.loads(path.read_text(encoding="utf-8"))["points"] == 300
         os.utime(path, (i, i))                                                    # older ids look older
     names = sorted(p.name for p in streams._dir().glob("*.full.json"))
     assert len(names) == streams.DETAIL_KEEP and "7.full.json" in names and "1.full.json" not in names

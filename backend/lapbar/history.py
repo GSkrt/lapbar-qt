@@ -27,14 +27,14 @@ def _write(path, data) -> None:
     config.private_dir(path.parent)
     tmp = path.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, separators=(",", ":"))
     tmp.replace(path)
 
 
 def _read(path):
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return None
     return data if isinstance(data, dict) and data.get("v") == DATA_VERSION else None

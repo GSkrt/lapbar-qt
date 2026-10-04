@@ -36,7 +36,7 @@ def path_for(activity_id: int):
 
 def _load(activity_id: int) -> dict:
     try:
-        data = json.loads(path_for(activity_id).read_text())
+        data = json.loads(path_for(activity_id).read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
     return data if data.get("v") == DATA_VERSION else {}
@@ -47,7 +47,7 @@ def _save(activity_id: int, data: dict) -> None:
     path = path_for(activity_id)
     tmp = path.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump({**data, "v": DATA_VERSION}, f, separators=(",", ":"))
     tmp.replace(path)
 

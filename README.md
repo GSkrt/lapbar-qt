@@ -3,6 +3,29 @@
 A standalone, PyQt6 sibling of [LapBar](https://github.com/GSkrt/lapbar): a system tray icon instead of an Omarchy
 bar widget, aimed at every mainstream distro (not only Arch/pacman, not tied to Omarchy or Quickshell at all).
 
+## Running it
+
+Linux, Windows and macOS. Python 3.11+, plus PyQt6 and pyqtgraph:
+
+- **Arch:** `sudo pacman -S python-pyqt6 python-pyqtgraph`, then `app/bin/lapbar-qt`.
+- **Windows / macOS / other distros:** `python -m pip install -r requirements.txt`, then
+  `python app/bin/lapbar-qt`. On Windows, double-clicking `app\bin\lapbar-qt.pyw` starts it without a console window.
+
+What differs per system, all handled in `backend/lapbar/platforms.py` and `vault.py`:
+
+| | Linux | Windows | macOS |
+|---|---|---|---|
+| Files | XDG folders (`~/.local/share/lapbar-qt`, …) | `%LOCALAPPDATA%\lapbar-qt`, config in `%APPDATA%` | `~/Library/Application Support/lapbar-qt`, `~/Library/Caches` |
+| Strava secret and tokens | keyring via `secret-tool`, else a private 0600 file | Windows Credential Manager | private 0600 file |
+| Popups (coach, kudos, comments) | the tray icon's own notifications | same (Windows toasts) | same (Notification Center) |
+
+macOS has no keyring option here on purpose: its built-in `security` tool takes the secret as a command-line
+argument, readable by every local account in `ps`. `LAPBAR_KEYRING=secret-tool|windows|none` overrides the choice.
+Popups shown by the tray carry no buttons, so the coach's "excuse" buttons from the Omarchy version are not offered;
+clicking a kudos or comment popup opens the activity on Strava, clicking a coach nudge opens the main window.
+
+CI (`.github/workflows/tests.yml`) runs the backend tests and a headless smoke test of the app on all three.
+
 ## Where this stands
 
 Nothing runs yet. What exists so far is the **shared backend**, copied from LapBar and trimmed of everything that

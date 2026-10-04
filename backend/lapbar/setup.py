@@ -286,6 +286,6 @@ def forget(out=print, everything: bool = False) -> list[str]:
     if env.exists():
         config.write_env_file(env, {}, remove=["STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_REFRESH_TOKEN"])
         removed.append("client id")
-        if not any("=" in line and not line.lstrip().startswith("#") for line in env.read_text().splitlines()):
+        if not any("=" in line and not line.lstrip().startswith("#") for line in env.read_text(encoding="utf-8").splitlines()):
             env.unlink()  # nothing but comments left
     return removed

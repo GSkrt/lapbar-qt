@@ -17,14 +17,14 @@ def _write_cache(summary: dict) -> None:
     tmp = path.with_suffix(".tmp")
     # Owner-only: the cache holds the names of people who gave you kudos.
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(summary, f, separators=(",", ":"))
     tmp.replace(path)  # atomic, so the widget never reads a half-written file
 
 
 def _read_cache() -> dict | None:
     try:
-        return json.loads(config.cache_path().read_text())
+        return json.loads(config.cache_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 

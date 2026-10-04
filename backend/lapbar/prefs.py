@@ -37,7 +37,7 @@ def _path():
 
 def load() -> dict:
     try:
-        data = json.loads(_path().read_text())
+        data = json.loads(_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         data = {}
     return {**DEFAULTS, **{k: v for k, v in data.items() if k in DEFAULTS}}
@@ -47,7 +47,7 @@ def _save(data: dict) -> None:
     config.private_dir(_path().parent)
     tmp = _path().with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     tmp.replace(_path())
 

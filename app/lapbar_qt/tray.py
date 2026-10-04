@@ -6,18 +6,21 @@ automatically the first time a fetch reports nothing is set up yet.
 import sys
 from pathlib import Path
 
-from lapbar import mute, prefs, setup
+from lapbar import mute, popups, prefs, setup
 from PyQt6.QtCore import QMetaObject, Q_ARG, Qt
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox, QSystemTrayIcon
 
-from . import datawindow, mainwindow, settings_dialogs, setup_wizard, worker
+from . import datawindow, mainwindow, notifications, settings_dialogs, setup_wizard, worker
 
 ICON_PATH = Path(__file__).parent / "assets" / "icon.svg"
 
 
 def main() -> int:
     app = QApplication(sys.argv)
+    # The Wayland app_id / X11 WM_CLASS: without it the window is just "python3", which no compositor rule
+    # (e.g. a Hyprland float rule) can match reliably.
+    app.setDesktopFileName("lapbar-qt")
     app.setQuitOnLastWindowClosed(False)  # a tray-only app has no window to keep it alive
 
     if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -40,6 +43,15 @@ def main() -> int:
             main_window.activateWindow()
 
     tray.activated.connect(toggle_main_window)
+
+    def show_main_window():
+        if not main_window.isVisible():
+            toggle_main_window()
+
+    # Coach nudges and kudos/comment alerts from the background fetch are shown by the tray icon itself, on
+    # every platform, instead of through a notify-send process (Linux-only, and its text sits in `ps`).
+    notifier = notifications.TrayNotifier(tray, on_click_without_link=show_main_window)
+    popups.presenter = notifier.present
 
     menu = QMenu()
 
@@ -137,13 +149,9 @@ def main() -> int:
     fetch_worker.summaryReady.connect(track_summary)
 
     def shutdown():
+        popups.presenter = None
         thread.quit()
         thread.wait()
-        # main_window's "Try one" preview can still be waiting on notify-send (up to ~38s) when the app
-        # quits; stop it too so Qt never destroys a QThread it still considers running.
-        if main_window._try_one_thread is not None:
-            main_window._try_one_thread.quit()
-            main_window._try_one_thread.wait()
 
     app.aboutToQuit.connect(shutdown)
 

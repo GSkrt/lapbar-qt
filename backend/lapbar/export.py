@@ -15,12 +15,11 @@ import json
 import math
 import os
 import subprocess
-import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config, details, history, prefs, raw
+from . import config, details, history, platforms, prefs, raw
 
 INSTALL_COMMANDS = ["omarchy pkg add python-duckdb"]
 INSTALL_HINT = ("DuckDB is not installed. Install its Python package, then try again:\n"
@@ -246,7 +245,7 @@ def _state_path():
 
 def state() -> dict:
     try:
-        data = json.loads(_state_path().read_text())
+        data = json.loads(_state_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return {"running": False}
     if data.get("running") and not _alive(data.get("pid")):
@@ -256,22 +255,14 @@ def state() -> dict:
 
 
 def _alive(pid) -> bool:
-    if not pid:
-        return False
-    try:
-        os.kill(int(pid), 0)
-    except (ProcessLookupError, ValueError):
-        return False
-    except PermissionError:
-        return True
-    return True
+    return platforms.pid_alive(pid)
 
 
 def _write_state(**fields) -> None:
     config.private_dir(_state_path().parent)
     tmp = _state_path().with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(fields, f, separators=(",", ":"))
     tmp.replace(_state_path())
 
@@ -280,7 +271,7 @@ def _write_state(**fields) -> None:
 
 def _cache() -> dict:
     try:
-        return json.loads(config.cache_path().read_text())
+        return json.loads(config.cache_path().read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
@@ -310,7 +301,7 @@ def _detail_files() -> list[dict]:
     if folder.is_dir():
         for path in folder.glob("*.json"):
             try:
-                data = json.loads(path.read_text())
+                data = json.loads(path.read_text(encoding="utf-8"))
                 out.append({"id": int(path.stem), **data})
             except (json.JSONDecodeError, ValueError):
                 continue
@@ -373,7 +364,7 @@ def _insert_samples(con, activity_id: int, lists: list) -> None:
     cols = [["" if v is None else ("true" if v is True else "false" if v is False else v) for v in c] for c in lists]
     fd, name = tempfile.mkstemp(suffix=".csv", prefix="lapbar-samples-")      # mode 600: it holds GPS positions
     try:
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("\n".join(",".join(map(str, (activity_id, *row))) for row in zip(*cols)))
             f.write("\n")
         con.execute(f"INSERT INTO samples SELECT * FROM read_csv('{name}', header=false, columns={_SAMPLE_COLUMNS})")
@@ -535,6 +526,6 @@ def spawn_if_enabled() -> bool:
     if not prefs.load()["export_continuous"] or not availability()["available"] or state().get("running"):
         return False
     launcher = Path(__file__).resolve().parent.parent / "bin" / "lapbar"
-    subprocess.Popen([sys.executable, "-I", str(launcher), "export"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                     stderr=subprocess.DEVNULL, start_new_session=True)
+    subprocess.Popen([platforms.background_python(), "-I", str(launcher), "export"], stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **platforms.detached())
     return True

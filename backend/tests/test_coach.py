@@ -3,11 +3,15 @@ import json
 import os
 import re
 import stat
+import sys
 from datetime import datetime, timedelta
 
 import pytest
 
 from lapbar import cli, coach, excuses, prefs
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 NOW = datetime(2026, 9, 20, 12, 0)
 
@@ -175,6 +179,7 @@ def test_feeling_tired_or_unwell_also_quiets_the_next_day_but_the_weather_does_n
     assert coach.tick(summary(idle=6), NOW, settings(), marked={day_before: "tired"})[0]["id"] == "idle"
 
 
+@posix_modes
 def test_excuses_are_stored_toggled_and_labelled(tmp_path):
     assert excuses.load() == {}
     assert excuses.toggle("2026-09-20", "tired") == {"2026-09-20": "tired"}
@@ -320,7 +325,7 @@ def test_a_refresh_shows_the_popups_and_caches_only_the_card(monkeypatch, capsys
     result = json.loads(out)
     assert code == 0 and result["coach"]["id"] == "idle" and "coach_events" not in result
     assert len(delivered) == 1 and delivered[0]["title"] == "ATTENTION" and delivered[0]["actions"]
-    cached = json.loads(cli.config.cache_path().read_text())
+    cached = json.loads(cli.config.cache_path().read_text(encoding="utf-8"))
     assert cached["coach"]["id"] == "idle"
 
 

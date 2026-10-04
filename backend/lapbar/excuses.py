@@ -22,7 +22,7 @@ def _file():
 def load() -> dict:
     """{"2026-09-20": "tired", ...}"""
     try:
-        data = json.loads(_file().read_text())
+        data = json.loads(_file().read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
     return {d: v["key"] for d, v in data.items() if isinstance(v, dict) and v.get("key") in LABELS}
@@ -32,7 +32,7 @@ def _save(data: dict) -> None:
     config.private_dir(_file().parent)
     tmp = _file().with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1, sort_keys=True)
     tmp.replace(_file())
 

@@ -8,7 +8,7 @@ from lapbar import system
 
 
 def make_executable(path):
-    path.write_text("#!/bin/sh\necho fake\n")
+    path.write_text("#!/bin/sh\necho fake\n", encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
 
 
@@ -60,7 +60,7 @@ def test_every_bare_external_tool_name_in_the_codebase_now_goes_through_tool(mon
     for path in (root / "lapbar").glob("*.py"):
         if path.name == "system.py":
             continue
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for name in ("secret-tool", "notify-send", "hyprctl", "quickshell", "xdg-open", "zenity", "kdialog", "yad"):
             for quote in ('"', "'"):
                 literal = f"{quote}{name}{quote}"

@@ -25,7 +25,7 @@ def _today() -> str:
 
 def _load() -> dict:
     try:
-        return json.loads(_file().read_text()).get("days", {})
+        return json.loads(_file().read_text(encoding="utf-8")).get("days", {})
     except (FileNotFoundError, json.JSONDecodeError, AttributeError):
         return {}
 
@@ -35,7 +35,7 @@ def _save(days: dict) -> None:
     keep = dict(sorted(days.items())[-KEEP:])
     tmp = _file().with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump({"days": keep}, f, separators=(",", ":"))
     tmp.replace(_file())
 

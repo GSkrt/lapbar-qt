@@ -1,10 +1,14 @@
 import json
 import os
 import stat
+import sys
 
 import pytest
 
 from lapbar import auth, config, vault
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 
 def mode(path) -> int:
@@ -16,9 +20,10 @@ def test_secrets_go_to_the_keyring_and_nowhere_else(keyring, tmp_path):
     assert keyring.items["client_secret"] == "s3cret"
     for f in tmp_path.rglob("*"):
         if f.is_file():
-            assert "s3cret" not in f.read_text(), f"secret leaked into {f}"
+            assert "s3cret" not in f.read_text(encoding="utf-8"), f"secret leaked into {f}"
 
 
+@posix_modes
 def test_without_a_keyring_the_fallback_file_is_private(keyring):
     keyring.broken = "Cannot autolaunch D-Bus without X11 $DISPLAY"
     assert vault.set("client_secret", "s3cret") == "file"
@@ -28,6 +33,7 @@ def test_without_a_keyring_the_fallback_file_is_private(keyring):
     assert vault.get("client_secret") == "s3cret"
 
 
+@posix_modes
 def test_file_is_never_world_readable_even_transiently(keyring, monkeypatch):
     keyring.broken = "no bus"
     seen = []
@@ -72,14 +78,14 @@ def test_legacy_plaintext_is_migrated_into_the_keyring_and_deleted(keyring):
     config.write_env_file(env, {"STRAVA_CLIENT_ID": "12345", "STRAVA_CLIENT_SECRET": "old-secret"})
     tokens = config.state_dir() / "tokens.json"
     config.private_dir(tokens.parent)
-    tokens.write_text(json.dumps({"access_token": "a", "refresh_token": "r", "expires_at": 1}))
+    tokens.write_text(json.dumps({"access_token": "a", "refresh_token": "r", "expires_at": 1}), encoding="utf-8")
 
     assert sorted(vault.migrate_legacy()) == ["client_secret", "tokens"]
 
     assert keyring.items["client_secret"] == "old-secret"
     assert json.loads(keyring.items["tokens"])["refresh_token"] == "r"
     assert not tokens.exists()
-    text = env.read_text()
+    text = env.read_text(encoding="utf-8")
     assert "STRAVA_CLIENT_ID=12345" in text            # the non-secret id stays
     assert "old-secret" not in text and "STRAVA_CLIENT_SECRET" not in text
 
@@ -88,7 +94,7 @@ def test_migration_waits_while_the_keyring_is_locked(keyring):
     config.write_env_file(config.user_env_path(), {"STRAVA_CLIENT_SECRET": "old-secret"})
     keyring.broken = "locked"
     assert vault.migrate_legacy() == []
-    assert "old-secret" in config.user_env_path().read_text()   # untouched, and still usable
+    assert "old-secret" in config.user_env_path().read_text(encoding="utf-8")   # untouched, and still usable
     keyring.broken = None
     assert vault.migrate_legacy() == ["client_secret"]
 
@@ -106,15 +112,17 @@ def test_tokens_roundtrip_through_auth_uses_the_keyring(keyring, monkeypatch):
     assert auth.has_tokens() is True
 
 
+@posix_modes
 def test_env_file_keeps_comments_and_other_keys_and_is_private():
     path = config.user_env_path()
     config.private_dir(path.parent)
-    path.write_text("# my notes\nOTHER=1\nSTRAVA_CLIENT_ID=old\n")
+    path.write_text("# my notes\nOTHER=1\nSTRAVA_CLIENT_ID=old\n", encoding="utf-8")
     config.write_env_file(path, {"STRAVA_CLIENT_ID": "999"})
-    assert path.read_text().splitlines() == ["# my notes", "OTHER=1", "STRAVA_CLIENT_ID=999"]
+    assert path.read_text(encoding="utf-8").splitlines() == ["# my notes", "OTHER=1", "STRAVA_CLIENT_ID=999"]
     assert mode(path) == 0o600
 
 
+@posix_modes
 def test_cache_is_owner_only(keyring, monkeypatch):
     from lapbar import cli
     cli._write_cache({"provider": "strava"})
@@ -142,7 +150,7 @@ def test_migration_does_not_delete_the_original_if_the_copy_cannot_be_confirmed(
 
     monkeypatch.setattr(vault, "_run", swallow_writes)
     assert vault.migrate_legacy() == []
-    assert "old-secret" in config.user_env_path().read_text()     # still there
+    assert "old-secret" in config.user_env_path().read_text(encoding="utf-8")     # still there
 
 
 def test_no_keyring_switch_makes_the_real_runner_refuse_before_spawning_anything(monkeypatch):

@@ -1,5 +1,6 @@
 """Records (PRs, KOMs) and kudos names of one activity, by name."""
 import json
+import sys
 from datetime import datetime
 
 import pytest
@@ -7,6 +8,9 @@ import pytest
 from lapbar import auth, cli, details, ratelimit
 from lapbar.http import HttpError
 from lapbar.providers import strava
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 RAW = {
     "segment_efforts": [
@@ -44,6 +48,7 @@ def test_nothing_ranked_gives_an_empty_list_and_odd_payloads_do_not_crash():
 
 # ---- storing
 
+@posix_modes
 def test_records_are_downloaded_once_and_reused(monkeypatch):
     calls = []
     monkeypatch.setattr(details, "request_json", lambda url, token=None, **kw: calls.append(url) or RAW)
@@ -136,7 +141,7 @@ def test_a_failed_records_request_does_not_break_the_refresh(monkeypatch):
 def write_cache(tmp_path, monkeypatch, activities, kudoers=None):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     (tmp_path / "lapbar-qt").mkdir()
-    (tmp_path / "lapbar-qt" / "cache.json").write_text(json.dumps({"activities": activities, "kudoers": kudoers or {}}))
+    (tmp_path / "lapbar-qt" / "cache.json").write_text(json.dumps({"activities": activities, "kudoers": kudoers or {}}), encoding="utf-8")
 
 
 def run(capsys, *argv):

@@ -46,14 +46,14 @@ def _athlete_file() -> Path:
 def own_id(token: str) -> int | None:
     """The signed-in athlete's Strava id: kept after the first look-up (one request, once)."""
     try:
-        return json.loads(_athlete_file().read_text()).get("id")
+        return json.loads(_athlete_file().read_text(encoding="utf-8")).get("id")
     except (OSError, json.JSONDecodeError):
         pass
     me = request_json(ATHLETE_URL, token=token)
     athlete_id = me.get("id") if isinstance(me, dict) else None
     if athlete_id:
         _athlete_file().parent.mkdir(parents=True, exist_ok=True)
-        _athlete_file().write_text(json.dumps({"id": athlete_id}))
+        _athlete_file().write_text(json.dumps({"id": athlete_id}), encoding="utf-8")
     return athlete_id
 
 

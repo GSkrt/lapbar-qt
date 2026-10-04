@@ -1,6 +1,7 @@
 import json
 import os
 import stat
+import sys
 import urllib.request
 from datetime import datetime, timezone
 
@@ -9,6 +10,9 @@ import pytest
 from lapbar import cli, config, kudos, ratelimit, streams
 from lapbar.http import HttpError, request_json
 from lapbar.providers import strava
+
+# Windows has no POSIX file modes; AppData is protected by per-user ACLs there instead.
+posix_modes = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 
 NOON = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc).timestamp()      # a Saturday, mid-day UTC
 
@@ -19,6 +23,7 @@ def use(daily, quarter=0, when=NOON, limits=("100,1000")):
 
 # ---- recording and reading Strava's counters
 
+@posix_modes
 def test_headers_are_parsed_and_stored_privately():
     use(daily=77, quarter=2)
     snap = ratelimit.snapshot(now=NOON)

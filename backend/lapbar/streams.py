@@ -38,7 +38,7 @@ def path_for(activity_id: int):
 def cached(activity_id: int) -> dict | None:
     """The stored data, or None if there is none or it was written by an older version."""
     try:
-        data = json.loads(path_for(activity_id).read_text())
+        data = json.loads(path_for(activity_id).read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return None
     return data if data.get("empty") or data.get("v") == DATA_VERSION else None
@@ -49,7 +49,7 @@ def _store(activity_id: int, data: dict, path=None) -> None:
     path = path or path_for(activity_id)
     tmp = path.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, separators=(",", ":"))
     tmp.replace(path)
 

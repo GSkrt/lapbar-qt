@@ -1,0 +1,7 @@
+# lapbar-qt's only third-party packages (the backend itself is standard-library Python).
+# On Arch: pacman -S python-pyqt6 python-pyqtgraph. Elsewhere, Windows and macOS included:
+#   python -m pip install -r requirements.txt
+PyQt6>=6.5
+pyqtgraph>=0.13
+# Optional, for Manage data -> DuckDB export:
+# duckdb

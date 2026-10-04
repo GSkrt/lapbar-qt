@@ -49,7 +49,7 @@ def test_addresses_are_matched_by_path_not_by_prefix():
 def test_no_module_hardcodes_a_strava_api_address():
     offenders = []
     for path in (ROOT / "lapbar").rglob("*.py"):
-        if path.name != "stravaapi.py" and re.search(r"strava\.com/(api|oauth)", path.read_text()):
+        if path.name != "stravaapi.py" and re.search(r"strava\.com/(api|oauth)", path.read_text(encoding="utf-8")):
             offenders.append(path.name)
     assert offenders == [], f"use lapbar.stravaapi instead: {offenders}"
 
@@ -96,9 +96,9 @@ def test_a_changed_spec_is_reported_in_plain_words():
 
 
 def test_the_committed_script_and_monthly_workflow_exist():
-    script = (ROOT / "scripts" / "check_strava_api.py").read_text()
+    script = (ROOT / "scripts" / "check_strava_api.py").read_text(encoding="utf-8")
     assert "check_spec" in script and "BASE_URL_MIGRATION" in script
-    workflow = (ROOT / ".github" / "workflows" / "strava-api.yml").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "strava-api.yml").read_text(encoding="utf-8")
     assert "schedule:" in workflow and "workflow_dispatch" in workflow and "check_strava_api.py" in workflow
 
 
@@ -120,7 +120,7 @@ def test_the_readme_lists_every_call_and_the_version():
     readme = ROOT / "README.md"
     if not readme.is_file():
         pytest.skip("no project README yet -- once there is one, it should list every call, like lapbar's does")
-    text = readme.read_text()
+    text = readme.read_text(encoding="utf-8")
     assert f"Strava API {stravaapi.API_VERSION}" in text and stravaapi.API_SPEC_VERSION in text
     for c in stravaapi.CALLS:
         assert f"`{(c['base'] + c['path']).replace('https://www.strava.com', '')}`" in text, c["id"]

@@ -62,7 +62,7 @@ def test_fresh_install_walks_through_all_three_steps(keyring):
     # credentials landed in the right places
     assert config.get("STRAVA_CLIENT_ID") == GOOD_ID
     assert keyring.items["client_secret"] == GOOD_SECRET
-    assert "STRAVA_CLIENT_SECRET" not in config.user_env_path().read_text()
+    assert "STRAVA_CLIENT_SECRET" not in config.user_env_path().read_text(encoding="utf-8")
     assert calls == [(GOOD_ID, GOOD_SECRET, True)]
     assert "Signed in as Ana Kovac" in text and "All set" in text
 
@@ -149,7 +149,7 @@ def test_updating_just_the_secret(keyring):
     s = Script(inputs=["2"], secrets=[new])
     assert run(s) == 0
     assert keyring.items["client_secret"] == new
-    assert "new secret works" in s.text and GOOD_ID in config.user_env_path().read_text()
+    assert "new secret works" in s.text and GOOD_ID in config.user_env_path().read_text(encoding="utf-8")
 
 
 def test_updating_the_secret_can_require_signing_in_again(keyring):
@@ -215,11 +215,11 @@ def test_reset_forgets_everything(keyring):
     config.write_env_file(config.user_env_path(), {"STRAVA_CLIENT_ID": GOOD_ID, "OTHER": "keep"})
     keyring.items.update(client_secret=GOOD_SECRET, tokens="{}")
     config.private_dir(config.cache_path().parent)
-    config.cache_path().write_text("{}")
+    config.cache_path().write_text("{}", encoding="utf-8")
     removed = setup.forget(out=lambda *_: None)
     assert keyring.items == {}
     assert not config.cache_path().exists()
-    assert config.user_env_path().read_text().strip() == "OTHER=keep"
+    assert config.user_env_path().read_text(encoding="utf-8").strip() == "OTHER=keep"
     assert {"client secret", "tokens", "client id"} <= set(removed)
 
 
@@ -233,7 +233,7 @@ def test_reset_also_removes_the_downloaded_time_series(keyring):
 
 def test_reset_deletes_the_config_file_when_only_comments_remain(keyring):
     config.write_env_file(config.user_env_path(), {"STRAVA_CLIENT_ID": GOOD_ID})
-    config.user_env_path().write_text("# notes\n" + config.user_env_path().read_text())
+    config.user_env_path().write_text("# notes\n" + config.user_env_path().read_text(encoding="utf-8"))
     setup.forget(out=lambda *_: None)
     assert not config.user_env_path().exists()
 

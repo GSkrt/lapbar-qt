@@ -68,6 +68,11 @@ def keyring(monkeypatch, tmp_path):
     # Never read or write the developer's real config, state, or cache either.
     for var in ("XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"):
         monkeypatch.setenv(var, str(tmp_path / var.lower()))
+    # Windows and macOS keep files under AppData and ~/Library instead (platforms.base_dirs()); keep those in
+    # tmp_path too, and use the fake secret-tool above on every platform rather than the real Credential Manager.
+    for var in ("HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA"):
+        monkeypatch.setenv(var, str(tmp_path / "home" / var.lower()))
+    monkeypatch.setenv("LAPBAR_KEYRING", "secret-tool")
     monkeypatch.chdir(tmp_path)
     for name in ("STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_REFRESH_TOKEN"):
         monkeypatch.delenv(name, raising=False)

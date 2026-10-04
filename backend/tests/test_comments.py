@@ -80,7 +80,7 @@ def test_your_own_reply_is_not_announced_and_your_id_is_looked_up_once(api):
     events, _, _ = comments.track("t", [act(1, 2)], previous)
     assert events == []
     assert api["calls"].count(comments.ATHLETE_URL) == 1
-    assert json.loads((config.state_dir() / "athlete.json").read_text()) == {"id": 7}
+    assert json.loads((config.state_dir() / "athlete.json").read_text(encoding="utf-8")) == {"id": 7}
     comments.own_id("t")
     assert api["calls"].count(comments.ATHLETE_URL) == 1                      # remembered
 

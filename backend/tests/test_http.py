@@ -1,6 +1,6 @@
 """request_json never buffers more than its byte cap, on a claimed size or on the actual bytes, before parsing."""
-import json
 import io
+import json
 import urllib.error
 
 import pytest
