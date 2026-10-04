@@ -115,3 +115,24 @@ def test_the_week_panel_shows_where_you_stand_and_switches_metric(qapp):
     panel.metric_box.setCurrentIndex(1)
     assert panel.current_metric() == "distance" and "km" in panel.detail.text()
     main.close()
+
+
+def test_the_data_window_has_the_export_controls_and_describes_the_database(qapp):
+    import time
+
+    from PyQt6.QtWidgets import QGroupBox, QPushButton
+    from lapbar import manage
+    from lapbar_qt import datawindow
+    window = datawindow.DataWindow()
+    window.show()
+    deadline = time.monotonic() + 10
+    while window._status is None and time.monotonic() < deadline:   # manage.status() runs on a thread
+        qapp.processEvents()
+    assert window._status is not None
+    buttons = {b.text() for b in window.findChildren(QPushButton)}
+    assert {"Export now", "Rebuild", "Choose folder…", "Default"} <= buttons
+    boxes = {b.title() for b in window.findChildren(QGroupBox)}
+    assert {"Export to DuckDB", "History", "Fetching, day by day"} <= boxes
+    assert {t["table"] for t in manage.status()["schema"]} <= boxes                # every table is described
+    assert window.windowTitle() == "LapBar · Data"
+    window.close()

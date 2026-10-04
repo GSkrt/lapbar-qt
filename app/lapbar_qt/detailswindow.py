@@ -52,11 +52,11 @@ class _DetailsWorker(QObject):
 class DetailsWindow(QDialog):
     def __init__(self, activity_id: int, title: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle(title or "Activity details")
+        self.setWindowTitle(branding.window_title("Activity details" + (f" · {title}" if title else "")))
         self.resize(440, 560)
 
         outer = QVBoxLayout(self)
-        outer.addWidget(branding.logo_label())
+        outer.addWidget(branding.header("Activity details", title or None))
         self.status = QLabel("Loading…")
         outer.addWidget(self.status)
 

@@ -76,13 +76,13 @@ def _totals_line(period: dict | None) -> str:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("lapbar-qt")
+        self.setWindowTitle(branding.window_title("Overview"))
         self.resize(760, 600)
 
         central = QWidget()
         self.setCentralWidget(central)
         outer = QVBoxLayout(central)
-        outer.addWidget(branding.logo_label())
+        outer.addWidget(branding.header("Overview"))
 
         # Two columns side by side, same shape as Panel.qml's leftCol/rightCol: the ride itself on the
         # left, fitness/training/quotes on the right. "Powered by Strava" sits below both, right-aligned,
@@ -239,6 +239,12 @@ class MainWindow(QMainWindow):
             footer.setStyleSheet("color: gray;")
         footer_row.addWidget(footer)
         outer.addLayout(footer_row)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.hide()          # like the original popup; the tray icon brings it back
+            return
+        super().keyPressEvent(event)
 
     @pyqtSlot(dict)
     def update_summary(self, summary: dict):

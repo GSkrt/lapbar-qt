@@ -31,11 +31,11 @@ def _epoch(iso_date: str) -> float:
 class FitnessChartWindow(QDialog):
     def __init__(self, fitness: dict, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Fitness, fatigue and form")
+        self.setWindowTitle(branding.window_title("Fitness, fatigue and form"))
         self.resize(760, 640)
 
         outer = QVBoxLayout(self)
-        outer.addWidget(branding.logo_label())
+        outer.addWidget(branding.header("Fitness, fatigue and form"))
         days = fitness.get("days") or []
         if not days:
             outer.addWidget(QLabel("Not enough history yet: a few weeks of activity are needed."))

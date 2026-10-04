@@ -55,11 +55,11 @@ class _ChartWorker(QObject):
 class ChartsWindow(QDialog):
     def __init__(self, activity_id: int, title: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle(title or "Ride charts")
+        self.setWindowTitle(branding.window_title("Activity metrics" + (f" · {title}" if title else "")))
         self.resize(880, 640)
 
         outer = QVBoxLayout(self)
-        outer.addWidget(branding.logo_label())
+        outer.addWidget(branding.header("Activity metrics", title or None))
         self.status = QLabel("Loading…")
         outer.addWidget(self.status)
 

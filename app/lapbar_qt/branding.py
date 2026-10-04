@@ -4,9 +4,9 @@ the way LapBar's own Quickshell windows show it in their header: white on dark t
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtGui import QFont, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QApplication, QLabel
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
 
 LOGO_DIR = Path(__file__).parent / "assets" / "logo"
 HEADER_HEIGHT = 30
@@ -44,3 +44,34 @@ def logo_label() -> QLabel:
         label.setPixmap(pixmap)
     label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
     return label
+
+
+def header(title: str, subtitle: str | None = None, closes_on_esc: bool = True) -> QWidget:
+    """A window's top row, like LapBar's own windows: the logo, what this window is (and for which activity),
+    and on the right "Esc to close" for the windows that do."""
+    row = QWidget()
+    layout = QHBoxLayout(row)
+    layout.setContentsMargins(0, 0, 0, 4)
+    layout.addWidget(logo_label())
+    name = QLabel(title)
+    font = name.font()
+    font.setBold(True)
+    font.setPointSize(font.pointSize() + 3)
+    name.setFont(font)
+    layout.addSpacing(10)
+    layout.addWidget(name, alignment=Qt.AlignmentFlag.AlignVCenter)
+    if subtitle:
+        detail = QLabel("·  " + subtitle)
+        detail.setStyleSheet("color: gray;")
+        detail.setFont(QFont(font.family(), font.pointSize() - 2))
+        layout.addWidget(detail, alignment=Qt.AlignmentFlag.AlignVCenter)
+    layout.addStretch(1)
+    if closes_on_esc:
+        hint = QLabel("Esc to close")
+        hint.setStyleSheet("color: gray;")
+        layout.addWidget(hint, alignment=Qt.AlignmentFlag.AlignVCenter)
+    return row
+
+
+def window_title(title: str) -> str:
+    return f"LapBar · {title}"
