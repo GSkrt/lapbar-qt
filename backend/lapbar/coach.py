@@ -28,11 +28,10 @@ Not medical advice; it never talks about bodies.
 import json
 import random
 import subprocess
-import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, excuses, popups, prefs, system
+from . import config, excuses, platforms, popups, prefs, system
 
 MODES = ("off", "motivational", "drill")
 TONES = ("motivational", "drill")
@@ -246,10 +245,9 @@ def deliver(event: dict, day: str | None = None) -> None:
     if popups.presenter is not None:
         popups.presenter("coach", event["title"], event["body"], None)
         return
-    launcher = Path(__file__).resolve().parent.parent / "bin" / "lapbar"
     payload = json.dumps({"event": event, "day": day or date.today().isoformat()})
-    subprocess.Popen([sys.executable, "-I", str(launcher), "coach", "--deliver", payload], stdin=subprocess.DEVNULL,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    subprocess.Popen([*platforms.cli_command(), "coach", "--deliver", payload], stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **platforms.detached())
 
 
 def sample(tone: str, kind: str = "random") -> dict:

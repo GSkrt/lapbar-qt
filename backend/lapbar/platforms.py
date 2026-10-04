@@ -14,6 +14,7 @@ from pathlib import Path
 
 IS_WINDOWS = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
+FROZEN = bool(getattr(sys, "frozen", False))   # running from a packaged app (PyInstaller), not from source
 APP = "lapbar-qt"
 
 
@@ -50,6 +51,17 @@ def background_python() -> str:
         if windowless.is_file():
             return str(windowless)
     return sys.executable
+
+
+def cli_command() -> list[str]:
+    """How to start `bin/lapbar <args>` as a background process.
+
+    From source: the interpreter (console-less on Windows) running bin/lapbar in isolated mode. In a packaged
+    app there is neither a Python nor a bin/lapbar on disk -- sys.executable is the app itself -- so the app's
+    own executable runs the command-line tool when its first argument is --cli (packaging/lapbar-qt.py)."""
+    if FROZEN:
+        return [sys.executable, "--cli"]
+    return [background_python(), "-I", str(Path(__file__).resolve().parent.parent / "bin" / "lapbar")]
 
 
 def pid_alive(pid) -> bool:

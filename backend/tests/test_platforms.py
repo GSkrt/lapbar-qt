@@ -117,3 +117,12 @@ def test_a_presenter_never_gets_a_link_that_is_not_strava(monkeypatch):
     monkeypatch.setattr(popups, "presenter", lambda *a: shown.append(a))
     alerts.deliver("kudos", {"count": 1, "total": 1, "from": [], "name": "x", "url": "https://evil.example/activities/1"})
     assert shown[0][3] is None
+
+
+def test_background_commands_use_the_app_itself_once_packaged(monkeypatch):
+    monkeypatch.setattr(platforms, "FROZEN", False)
+    from_source = platforms.cli_command()
+    assert from_source[1] == "-I" and from_source[2].endswith(os.path.join("bin", "lapbar"))
+    monkeypatch.setattr(platforms, "FROZEN", True)
+    monkeypatch.setattr(sys, "executable", "/Applications/lapbar-qt.app/Contents/MacOS/lapbar-qt")
+    assert platforms.cli_command() == ["/Applications/lapbar-qt.app/Contents/MacOS/lapbar-qt", "--cli"]

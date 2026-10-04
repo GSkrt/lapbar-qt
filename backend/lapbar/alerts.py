@@ -11,10 +11,8 @@ A popup is shown by a process of its own, because waiting for the click takes a 
 import html
 import json
 import subprocess
-import sys
-from pathlib import Path
 
-from . import comments, kudos, popups, system
+from . import comments, kudos, platforms, popups, system
 
 ORANGE = "#FC5200"                       # Strava's colour, as its brand guidelines ask for links
 LINK_TEXT = "View on Strava"
@@ -69,7 +67,6 @@ def deliver(kind: str, event: dict) -> None:
         n = KINDS[kind](event)
         popups.presenter(kind, html.unescape(n["title"]), html.unescape(n["body"]), safe_url(n.get("url")))
         return
-    launcher = Path(__file__).resolve().parent.parent / "bin" / "lapbar"
     payload = json.dumps({"kind": kind, "event": event})
-    subprocess.Popen([sys.executable, "-I", str(launcher), "alert", "--deliver", payload],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    subprocess.Popen([*platforms.cli_command(), "alert", "--deliver", payload],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **platforms.detached())

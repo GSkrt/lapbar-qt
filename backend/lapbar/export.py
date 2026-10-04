@@ -525,7 +525,6 @@ def spawn_if_enabled() -> bool:
     A separate process, because the first run can take minutes and a refresh must stay quick."""
     if not prefs.load()["export_continuous"] or not availability()["available"] or state().get("running"):
         return False
-    launcher = Path(__file__).resolve().parent.parent / "bin" / "lapbar"
-    subprocess.Popen([platforms.background_python(), "-I", str(launcher), "export"], stdin=subprocess.DEVNULL,
+    subprocess.Popen([*platforms.cli_command(), "export"], stdin=subprocess.DEVNULL,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **platforms.detached())
     return True

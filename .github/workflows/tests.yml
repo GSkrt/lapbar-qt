@@ -1,5 +1,8 @@
 name: tests
 
+# Pushes and pull requests: Linux only, oldest and newest Python (cheap: Linux minutes count 1x).
+# Started by hand from the Actions tab: Windows and macOS as well. In a private repo those count 2x and 10x
+# against the monthly Actions allowance, so they are not run on every push.
 on:
   push:
     branches: [main]
@@ -11,9 +14,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ github.event_name == 'workflow_dispatch' && fromJSON('["ubuntu-latest", "windows-latest", "macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
         python-version: ["3.11", "3.13"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     env:
       QT_QPA_PLATFORM: offscreen
       PYTHONIOENCODING: utf-8

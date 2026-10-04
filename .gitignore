@@ -9,3 +9,8 @@ uv.lock
 # My private working notes: not part of the repository.
 TODO.md
 TODO-archive.md
+
+# PyInstaller output (packaging/lapbar-qt.spec)
+build/
+dist/
+lapbar-qt-selftest.log

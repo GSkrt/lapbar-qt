@@ -24,7 +24,20 @@ argument, readable by every local account in `ps`. `LAPBAR_KEYRING=secret-tool|w
 Popups shown by the tray carry no buttons, so the coach's "excuse" buttons from the Omarchy version are not offered;
 clicking a kudos or comment popup opens the activity on Strava, clicking a coach nudge opens the main window.
 
-CI (`.github/workflows/tests.yml`) runs the backend tests and a headless smoke test of the app on all three.
+CI (`.github/workflows/tests.yml`) runs the backend tests and a headless smoke test of the app: on Linux for every
+push, and on Windows and macOS too when started by hand from the Actions tab.
+
+### Packaged apps (Windows .exe, macOS .app)
+
+`.github/workflows/build.yml` builds them with PyInstaller (`packaging/lapbar-qt.spec`): a single
+`lapbar-qt.exe` for Windows, and `lapbar-qt.app` in a `.dmg` for macOS (Apple silicon), each self-tested
+after the build. Pushing a version tag (`git tag v0.2.0 && git push --tags`) builds both and publishes them as a
+GitHub release; running the workflow by hand only keeps them as downloadable artifacts for 14 days.
+
+They are not code-signed, so the first launch shows a warning: on Windows, SmartScreen's "More info" then "Run
+anyway"; on macOS, right-click the app and choose Open (or `xattr -dr com.apple.quarantine lapbar-qt.app`).
+Signing needs a Windows code-signing certificate and an Apple Developer account. DuckDB is not bundled, so
+Manage data's export is unavailable in these builds.
 
 ## Where this stands
 
