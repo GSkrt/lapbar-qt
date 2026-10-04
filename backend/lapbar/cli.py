@@ -109,7 +109,7 @@ def cmd_fetch(args) -> int:
     if args.print:
         summary["muted"] = mute.is_muted()
         summary["budget"] = ratelimit.summary(ratelimit.snapshot())
-        print(json.dumps(summary, indent=2 if sys.stdout.isatty() else None))
+        print(json.dumps(summary, indent=2 if sys.stdout is not None and sys.stdout.isatty() else None))
     return 0
 
 

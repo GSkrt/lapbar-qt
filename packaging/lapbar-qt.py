@@ -13,6 +13,12 @@ import sys
 import traceback
 from pathlib import Path
 
+# A windowed program (the Windows .exe, or pythonw) has no console: sys.stdout/stderr/stdin are None, and
+# any library writing to them would crash. Give them somewhere harmless to go instead.
+for _name, _mode in (("stdout", "w"), ("stderr", "w"), ("stdin", "r")):
+    if getattr(sys, _name) is None:
+        setattr(sys, _name, open(os.devnull, _mode, encoding="utf-8"))
+
 if not getattr(sys, "frozen", False):
     ROOT = Path(__file__).resolve().parent.parent
     sys.path[:0] = [str(ROOT / "app"), str(ROOT / "backend")]

@@ -172,3 +172,14 @@ def test_the_tray_escapes_what_it_shows_on_linux(qapp, monkeypatch):
     notifications.TrayNotifier(tray).present("comments", "Eve <i>X</i>", "<b>hi</b> & bye", None)
     _drain(qapp)
     assert shown == [("Eve ‹i›X‹/i›", "&lt;b&gt;hi&lt;/b&gt; &amp; bye")]
+
+
+def test_it_starts_without_a_console(monkeypatch):
+    """A windowed Windows .exe (and pythonw) has sys.stdout = None: nothing may assume a console at import."""
+    import importlib
+    import sys
+
+    from lapbar import cli, setup
+    monkeypatch.setattr(sys, "stdout", None)
+    importlib.reload(setup)        # it decided on terminal colours with sys.stdout.isatty() when loaded
+    importlib.reload(cli)

@@ -21,7 +21,8 @@ ID_RE = re.compile(r"^\d{3,9}$")
 SECRET_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 MAX_ATTEMPTS = 3
 
-_tty = sys.stdout.isatty()
+# sys.stdout is None in a program without a console (a windowed .exe, or pythonw on Windows).
+_tty = sys.stdout is not None and sys.stdout.isatty()
 bold = (lambda s: f"\033[1m{s}\033[0m") if _tty else (lambda s: s)
 dim = (lambda s: f"\033[2m{s}\033[0m") if _tty else (lambda s: s)
 warn = (lambda s: f"\033[33m{s}\033[0m") if _tty else (lambda s: s)
