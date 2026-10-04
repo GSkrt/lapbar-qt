@@ -42,6 +42,37 @@ def _strava_logo_pixmap(height: int = 16) -> QPixmap:
     return pixmap
 
 
+def _stat_cells(latest: dict) -> list[tuple[str, str]]:
+    """Which numbers matter depends on the sport, same as Panel.qml's statCells: pace where people think in
+    pace, speed and power for cycling, time only for sessions without distance (gym, yoga...)."""
+    cells = []
+    if latest.get("distance_km", 0) > 0:
+        km = latest["distance_km"]
+        cells.append(("Distance", f"{km:.1f} km" if km >= 10 else f"{km:.2f} km"))
+    cells.append(("Time", tooltip.fmt_duration(latest.get("moving_time_s", 0))))
+    if latest.get("elevation_m", 0) > 0:
+        cells.append(("Climb", f"{latest['elevation_m']} m"))
+    if latest.get("pace_s"):
+        m, s = divmod(int(latest["pace_s"]), 60)
+        cells.append(("Pace", f"{m}:{s:02d} /{latest['pace_unit']}"))
+    elif latest.get("avg_speed_kmh"):
+        cells.append(("Speed", f"{latest['avg_speed_kmh']} km/h"))
+    if latest.get("avg_watts"):
+        cells.append(("Power", f"{round(latest['avg_watts'])} W"))
+    if latest.get("avg_heartrate"):
+        cells.append(("Heart rate", f"{latest['avg_heartrate']} bpm"))
+    if latest.get("avg_cadence"):
+        cells.append(("Cadence", f"{latest['avg_cadence']} {latest.get('cadence_unit', '')}"))
+    return cells
+
+
+def _totals_line(period: dict | None) -> str:
+    if not period or not period.get("count"):
+        return "—"
+    return (f"{period['count']} · {tooltip.fmt_duration(period['moving_time_s'])} · "
+            f"{period['distance_km']:.1f} km · {period['elevation_m']} m climb")
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
