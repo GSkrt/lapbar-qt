@@ -75,11 +75,11 @@ def test_a_missing_duckdb_is_reported_with_the_install_commands(monkeypatch, cap
         raise export.DuckdbMissing(export.INSTALL_HINT)
     monkeypatch.setattr(export, "_import", missing)
     assert export.availability() == {"available": False, "version": None, "install": export.INSTALL_COMMANDS, "spatial": False}
-    assert "omarchy pkg add python-duckdb" in export.INSTALL_HINT and "sudo" not in export.INSTALL_HINT
+    assert export.INSTALL_COMMANDS and export.INSTALL_COMMANDS[0] in export.INSTALL_HINT
     with pytest.raises(SystemExit):
         cli.main(["export", "--path", "/tmp/never.duckdb"])
     out = json.loads(capsys.readouterr().out)
-    assert out["error"] == "duckdb_missing" and out["install"] == export.INSTALL_COMMANDS and "python-duckdb" in out["message"]
+    assert out["error"] == "duckdb_missing" and out["install"] == export.INSTALL_COMMANDS and export.INSTALL_COMMANDS[0] in out["message"]
 
 
 def test_continuous_export_does_nothing_without_duckdb(monkeypatch):

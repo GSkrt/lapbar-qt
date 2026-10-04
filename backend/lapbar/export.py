@@ -14,17 +14,34 @@ it creates them and it is what the data window shows next to the export settings
 import json
 import math
 import os
+import shutil
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import config, details, history, platforms, prefs, raw
 
-INSTALL_COMMANDS = ["omarchy pkg add python-duckdb"]
-INSTALL_HINT = ("DuckDB is not installed. Install its Python package, then try again:\n"
-                "    " + INSTALL_COMMANDS[0] + "\n"
-                "(add the `duckdb` package as well if you want the `duckdb` command line to query the file.)")
+def _install_commands() -> list[str]:
+    """How to get DuckDB's Python package for the Python this app runs on; empty in a packaged app, which can't
+    take extra packages."""
+    if platforms.FROZEN:
+        return []
+    if sys.prefix != sys.base_prefix:                 # a virtualenv: install into exactly this one
+        return [f"{sys.executable} -m pip install duckdb"]
+    if platforms.IS_WINDOWS:
+        return ["python -m pip install duckdb"]
+    if not platforms.IS_MAC and shutil.which("pacman"):
+        return ["sudo pacman -S python-duckdb"]       # Arch and derivatives package it; pip into the system is refused
+    return ["python3 -m pip install duckdb"]
+
+
+INSTALL_COMMANDS = _install_commands()
+INSTALL_HINT = ("DuckDB is not installed. Install its Python package, then try again:\n    " + INSTALL_COMMANDS[0]
+                if INSTALL_COMMANDS else
+                "DuckDB is not included in this build of LapBar, so the export is unavailable. Running LapBar from "
+                "source with DuckDB installed enables it.")
 
 
 class DuckdbMissing(RuntimeError):

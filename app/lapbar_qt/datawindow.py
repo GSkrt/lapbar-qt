@@ -161,7 +161,13 @@ class DataWindow(QDialog):
             elif export["state"].get("error"):
                 el.addWidget(QLabel(f"Last export: {export['state']['error']}"))
         else:
-            el.addWidget(QLabel("DuckDB is not installed, so the export is unavailable."))
+            commands = export.get("install") or []
+            text = ("DuckDB is not installed, so the export is unavailable. To add it, run:\n    " + commands[0]
+                    if commands else "DuckDB is not included in this build of LapBar, so the export is unavailable.")
+            hint = QLabel(text)
+            hint.setWordWrap(True)
+            hint.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)   # so the command can be copied
+            el.addWidget(hint)
         layout.addWidget(export_box)
 
         layout.addStretch(1)

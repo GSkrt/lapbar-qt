@@ -126,3 +126,21 @@ def test_background_commands_use_the_app_itself_once_packaged(monkeypatch):
     monkeypatch.setattr(platforms, "FROZEN", True)
     monkeypatch.setattr(sys, "executable", "/Applications/lapbar-qt.app/Contents/MacOS/lapbar-qt")
     assert platforms.cli_command() == ["/Applications/lapbar-qt.app/Contents/MacOS/lapbar-qt", "--cli"]
+
+
+def test_the_duckdb_install_hint_fits_the_system(monkeypatch):
+    from lapbar import export
+    monkeypatch.setattr(sys, "base_prefix", sys.prefix)           # not in a virtualenv
+    monkeypatch.setattr(platforms, "FROZEN", False)
+    monkeypatch.setattr(platforms, "IS_MAC", False)
+    monkeypatch.setattr(platforms, "IS_WINDOWS", True)
+    assert export._install_commands() == ["python -m pip install duckdb"]
+    monkeypatch.setattr(platforms, "IS_WINDOWS", False)
+    monkeypatch.setattr(export.shutil, "which", lambda name: "/usr/bin/pacman" if name == "pacman" else None)
+    assert export._install_commands() == ["sudo pacman -S python-duckdb"]
+    monkeypatch.setattr(export.shutil, "which", lambda name: None)
+    assert export._install_commands() == ["python3 -m pip install duckdb"]
+    monkeypatch.setattr(sys, "base_prefix", "/somewhere/else")      # in a virtualenv: that exact interpreter
+    assert export._install_commands() == [f"{sys.executable} -m pip install duckdb"]
+    monkeypatch.setattr(platforms, "FROZEN", True)                  # a packaged app can't take packages
+    assert export._install_commands() == []
