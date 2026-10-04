@@ -44,7 +44,8 @@ after the build. Pushing a version tag (`git tag v0.2.0 && git push --tags`) bui
 GitHub release; running the workflow by hand only keeps them as downloadable artifacts for 14 days.
 
 They are not code-signed, so the first launch shows a warning: on Windows, SmartScreen's "More info" then "Run
-anyway"; on macOS, right-click the app and choose Open (or `xattr -dr com.apple.quarantine lapbar-qt.app`).
+anyway"; on macOS 15 and later, try to open it once, then System Settings > Privacy & Security > "Open Anyway"
+(or `xattr -dr com.apple.quarantine lapbar-qt.app`).
 Signing needs a Windows code-signing certificate and an Apple Developer account. DuckDB is not bundled, so
 Manage data's export is unavailable in these builds.
 
