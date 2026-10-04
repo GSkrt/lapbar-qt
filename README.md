@@ -27,6 +27,15 @@ clicking a kudos or comment popup opens the activity on Strava, clicking a coach
 CI (`.github/workflows/tests.yml`) runs the backend tests and a headless smoke test of the app: on Linux for every
 push, and on Windows and macOS too when started by hand from the Actions tab.
 
+### Starting at login
+
+There is no installer: tick **Start at login** in the tray icon's menu (it is also offered once, right after
+the first successful setup). The app then registers itself for the current user only, without admin rights:
+a `HKCU\...\CurrentVersion\Run` value on Windows (it shows under Task Manager > Startup apps), a LaunchAgent in
+`~/Library/LaunchAgents` on macOS, and `~/.config/autostart/lapbar-qt.desktop` on Linux. Every start re-points
+the entry at where the app runs from, so moving the `.exe` or `.app` doesn't break it. Hyprland, Sway and
+similar compositors don't read `~/.config/autostart`; the app says so and shows the line for their config.
+
 ### Packaged apps (Windows .exe, macOS .app)
 
 `.github/workflows/build.yml` builds them with PyInstaller (`packaging/lapbar-qt.spec`): a single

@@ -11,7 +11,7 @@ from PyQt6.QtCore import QMetaObject, Q_ARG, Qt
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox, QSystemTrayIcon
 
-from . import datawindow, mainwindow, notifications, settings_dialogs, setup_wizard, worker
+from . import autostart, datawindow, mainwindow, notifications, settings_dialogs, setup_wizard, worker
 
 ICON_PATH = Path(__file__).parent / "assets" / "icon.svg"
 
@@ -61,11 +61,27 @@ def main() -> int:
         last_summary.clear()
         last_summary.update(summary)
 
+    def set_start_at_login(enabled: bool):
+        try:
+            autostart.set_enabled(enabled)
+        except OSError as e:
+            QMessageBox.warning(None, "Start at login", f"Could not change it: {e}")
+            return
+        hint = autostart.manual_hint() if enabled else None
+        if hint:
+            QMessageBox.information(None, "Start at login", hint)
+
     def open_setup():
         # fetch() is a @pyqtSlot on a worker living on the background thread; invokeMethod queues this call
         # onto that thread instead of running it here, the same cross-thread pattern QThread signals use.
         if setup_wizard.run_setup_wizard():
             QMetaObject.invokeMethod(fetch_worker, "fetch", Qt.ConnectionType.QueuedConnection)
+            # Offered once setup has worked, rather than done silently: starting at login is the user's call.
+            if not autostart.is_enabled() and QMessageBox.question(
+                    None, "Start at login", "Start LapBar automatically when you log in?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes) == QMessageBox.StandardButton.Yes:
+                set_start_at_login(True)
 
     def refresh_now():
         QMetaObject.invokeMethod(fetch_worker, "fetch", Qt.ConnectionType.QueuedConnection)
@@ -116,6 +132,12 @@ def main() -> int:
     mute_action.triggered.connect(lambda checked: mute.set_muted(checked))
     menu.addAction(mute_action)
 
+    login_action = QAction("Start at login", menu)
+    login_action.setCheckable(True)
+    menu.aboutToShow.connect(lambda: login_action.setChecked(autostart.is_enabled()))
+    login_action.triggered.connect(set_start_at_login)
+    menu.addAction(login_action)
+
     interval_action = QAction("Refresh every…", menu)
     interval_action.triggered.connect(open_interval_dialog)
     menu.addAction(interval_action)
@@ -155,6 +177,7 @@ def main() -> int:
 
     app.aboutToQuit.connect(shutdown)
 
+    autostart.refresh()     # if starting at login is on, keep it pointing at where the app runs from now
     tray.show()
     return app.exec()
 
