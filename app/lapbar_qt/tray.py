@@ -4,13 +4,16 @@ menu already had (steps 3 and 6), the main window (step 4), the details window (
 automatically the first time a fetch reports nothing is set up yet.
 """
 import sys
+from pathlib import Path
 
 from lapbar import mute, prefs, setup
 from PyQt6.QtCore import QMetaObject, Q_ARG, Qt
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox, QStyle, QSystemTrayIcon
+from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox, QSystemTrayIcon
 
 from . import datawindow, mainwindow, settings_dialogs, setup_wizard, worker
+
+ICON_PATH = Path(__file__).parent / "assets" / "icon.svg"
 
 
 def main() -> int:
@@ -21,9 +24,7 @@ def main() -> int:
         print("No system tray available on this desktop.", file=sys.stderr)
         return 1
 
-    # Placeholder only -- a real tray-sized icon is still to be designed. Qt's own built-in standard icon
-    # needs no asset file and no icon theme to be installed, so it renders the same everywhere until then.
-    tray = QSystemTrayIcon(app.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
+    tray = QSystemTrayIcon(QIcon(str(ICON_PATH)))
     tray.setToolTip("lapbar-qt · Loading…")
 
     main_window = mainwindow.MainWindow()
