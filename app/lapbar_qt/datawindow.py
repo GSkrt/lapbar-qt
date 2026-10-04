@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (QCalendarWidget, QDialog, QDialogButtonBox, QGroupB
 
 from lapbar import manage, prefs
 
+from . import branding
+
 
 def _fmt_bytes(n) -> str:
     if n is None:
@@ -61,6 +63,7 @@ class DataWindow(QDialog):
         self.resize(480, 600)
 
         outer = QVBoxLayout(self)
+        outer.addWidget(branding.logo_label())
         self.status_label = QLabel("Loading…")
         outer.addWidget(self.status_label)
         self._content = QWidget()

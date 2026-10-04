@@ -1,5 +1,5 @@
-"""Calendar to browse past rides, matching Panel.qml's own: days shaded by how active you were, a green
-dot for days whose full data is stored locally, an orange ring for days you skipped, click a day to show
+"""Calendar to browse past rides, matching Panel.qml's own: days shaded by how active you were (blue, or
+green for days whose full data is stored locally), an orange ring for days you skipped, click a day to show
 that ride. Built on QCalendarWidget (paintCell overridden) rather than a hand-rolled grid of cells -- the
 same "use the right built-in Qt class for the job" approach as QSystemTrayIcon/QThread/QTextBrowser/
 PyQtGraph elsewhere in this app.
@@ -18,7 +18,7 @@ from lapbar import excuses, history
 
 ACCENT = QColor("#7aa2f7")
 RING_COLOR = QColor("#ffca28")
-DOT_COLOR = QColor("#4caf50")
+STORED_COLOR = QColor("#4caf50")
 MONTH_NAMES = ("January", "February", "March", "April", "May", "June", "July", "August", "September",
               "October", "November", "December")
 
@@ -57,7 +57,7 @@ class _Calendar(QCalendarWidget):
         in_month = qdate.month() == self.monthShown()
 
         if info and in_month:
-            color = QColor(ACCENT)
+            color = QColor(STORED_COLOR if key in self.archived_keys else ACCENT)
             color.setAlphaF(_alpha_for(info.get("moving_time_s", 0)))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(color)
@@ -76,11 +76,6 @@ class _Calendar(QCalendarWidget):
         text_color = self.palette().color(QPalette.ColorRole.WindowText) if in_month else QColor("#666666")
         painter.setPen(QPen(text_color))
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(qdate.day()))
-
-        if key in self.archived_keys and in_month:
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(DOT_COLOR)
-            painter.drawEllipse(rect.right() - 9, rect.bottom() - 9, 5, 5)
 
         painter.restore()
 
@@ -142,6 +137,12 @@ class CalendarPanel(QWidget):
         self.calendar = _Calendar()
         self.calendar.setMinimumHeight(220)
         body_layout.addWidget(self.calendar)
+
+        legend = QLabel(f'<span style="color:{ACCENT.name()}">■</span> activity &nbsp;&nbsp;'
+                        f'<span style="color:{STORED_COLOR.name()}">■</span> stored locally')
+        legend.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        legend.setStyleSheet("color: gray;")
+        body_layout.addWidget(legend)
 
         self.prev_year_btn.clicked.connect(lambda: self._shift(-12))
         self.prev_month_btn.clicked.connect(lambda: self._shift(-1))

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import pyqtgraph as pg
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from . import chartlegend
+from . import branding, chartlegend
 
 pg.setConfigOptions(antialias=True)
 
@@ -35,6 +35,7 @@ class FitnessChartWindow(QDialog):
         self.resize(760, 640)
 
         outer = QVBoxLayout(self)
+        outer.addWidget(branding.logo_label())
         days = fitness.get("days") or []
         if not days:
             outer.addWidget(QLabel("Not enough history yet: a few weeks of activity are needed."))

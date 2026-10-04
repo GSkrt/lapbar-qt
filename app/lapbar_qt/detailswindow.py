@@ -8,7 +8,7 @@ import html
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QDialog, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from . import fetcher
+from . import branding, fetcher
 
 RECORD_ICON = {"kom": "\U0001f3c6", "pr": "\U0001f3c5"}  # cup for a top-10 KOM place, medal for a PR
 
@@ -56,6 +56,7 @@ class DetailsWindow(QDialog):
         self.resize(440, 560)
 
         outer = QVBoxLayout(self)
+        outer.addWidget(branding.logo_label())
         self.status = QLabel("Loading…")
         outer.addWidget(self.status)
 

@@ -4,9 +4,9 @@ and fatigue as lines on top, form as green/orange bars underneath (tomorrow's as
 the plot. Hover any day."). The full, interactive, linked-crosshair version with min/max and a Load row
 lives in fitnesschartwindow.py, behind the "Open chart" button next to this.
 
-Sized to the window, not fixed: a minimum height keeps it legible, but an Expanding size policy plus a
-resizeEvent that rescales the axis tick font with the widget's actual height means it genuinely grows or
-shrinks along with the main window instead of leaving dead space (or clipping) at a fixed size.
+Sized to the window, not fixed: a minimum height keeps it legible, and an Expanding size policy plus a
+resizeEvent that rescales the axis tick font with the widget's actual height lets it grow or shrink with the
+main window -- up to MAX_HEIGHT, so a tall window doesn't stretch it into a tower.
 """
 import bisect
 from datetime import datetime, timezone
@@ -17,6 +17,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
 MIN_HEIGHT = 90
+MAX_HEIGHT = 220
 
 
 def _tick_font_for(row_height: float) -> QFont:
@@ -47,6 +48,7 @@ class FitnessMiniPlot(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumHeight(MIN_HEIGHT)
+        self.setMaximumHeight(MAX_HEIGHT)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

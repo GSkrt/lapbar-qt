@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from . import chartlegend, fetcher
+from . import branding, chartlegend, fetcher
 
 pg.setConfigOptions(antialias=True)
 
@@ -59,6 +59,7 @@ class ChartsWindow(QDialog):
         self.resize(880, 640)
 
         outer = QVBoxLayout(self)
+        outer.addWidget(branding.logo_label())
         self.status = QLabel("Loading…")
         outer.addWidget(self.status)
 
