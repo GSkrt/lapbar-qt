@@ -16,8 +16,8 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QGridLayout, QGroupBox,
 
 from lapbar import coach, prefs
 
-from . import (branding, calendarwidget, chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, routepreview,
-               tooltip, weekpanel)
+from . import (branding, calendarwidget, chartswindow, detailswindow, fitnesschartwindow, fitnessminiplot, icons,
+               routepreview, tooltip, weekpanel)
 
 TONE_LABELS = (("off", "Silent"), ("motivational", "Motivational"), ("drill", "Drill sergeant"))
 STRAVA_ORANGE = "#fc4c02"
@@ -147,6 +147,7 @@ class MainWindow(QMainWindow):
         self.strava_button.clicked.connect(self._open_on_strava)
         overview_buttons.addWidget(self.strava_button)
         self.charts_button = QPushButton("Activity metrics")
+        icons.decorate(self.charts_button, "metrics")
         self.charts_button.clicked.connect(self._open_charts)
         overview_buttons.addWidget(self.charts_button)
         ride_box_layout.addLayout(overview_buttons)
@@ -187,6 +188,7 @@ class MainWindow(QMainWindow):
         fitness_chart_row = QHBoxLayout()
         fitness_chart_row.addStretch(1)
         self.fitness_chart_button = QPushButton("Open chart")
+        icons.decorate(self.fitness_chart_button, "fitness")
         self.fitness_chart_button.clicked.connect(self._open_fitness_chart)
         fitness_chart_row.addWidget(self.fitness_chart_button)
         fitness_layout.addLayout(fitness_chart_row)

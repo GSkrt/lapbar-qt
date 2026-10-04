@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QTabWidge
 
 from lapbar import history
 
-from . import plotstyle, weekcompare
+from . import icons, plotstyle, weekcompare
 
 THIS_BLUE = "#3987e5"
 LAST_GREY = "#9e9e9e"
@@ -75,8 +75,8 @@ class WeekComparePanel(QGroupBox):
         self.tabs = QTabWidget()
         self.week_plot = pg.PlotWidget()
         self.history_plot = pg.PlotWidget()
-        self.tabs.addTab(self.week_plot, "This week")
-        self.tabs.addTab(self.history_plot, f"Last {WEEKS} weeks")
+        self.tabs.addTab(self.week_plot, icons.chart("week"), "This week")
+        self.tabs.addTab(self.history_plot, icons.chart("weeks"), f"Last {WEEKS} weeks")
         self.tabs.setFixedHeight(175)
         self.tabs.setCurrentIndex(int(self._settings.value("week_tab", 0)))
         self.tabs.currentChanged.connect(lambda i: self._settings.setValue("week_tab", i))

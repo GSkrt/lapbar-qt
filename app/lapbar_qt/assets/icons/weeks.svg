@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- weekly totals as bars, this week highlighted -->
+  <path d="M3 3v18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="6" y="11" width="2.5" height="8" rx=".5" fill="#9e9e9e"/>
+  <rect x="10" y="7" width="2.5" height="12" rx=".5" fill="#9e9e9e"/>
+  <rect x="14" y="13" width="2.5" height="6" rx=".5" fill="#9e9e9e"/>
+  <rect x="18" y="10" width="2.5" height="9" rx=".5" fill="#3987e5"/>
+</svg>
