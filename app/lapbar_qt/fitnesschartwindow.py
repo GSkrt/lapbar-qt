@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 import pyqtgraph as pg
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from . import branding, chartlegend
+from . import branding, chartlegend, plotstyle
 
 pg.setConfigOptions(antialias=True)
 
@@ -78,10 +78,10 @@ class FitnessChartWindow(QDialog):
             "Form": chartlegend.ValueRow("Form", FRESH_GREEN_HEX),
             "Load": chartlegend.ValueRow("Load", LOAD_GRAY),
         }
-        self.value_rows["Fitness"].minmax_label.setText(f"min {min(fitness_vals):.0f}  ·  max {max(fitness_vals):.0f}")
-        self.value_rows["Fatigue"].minmax_label.setText(f"min {min(fatigue_vals):.0f}  ·  max {max(fatigue_vals):.0f}")
-        self.value_rows["Form"].minmax_label.setText(f"min {min(form_vals):.0f}  ·  max {max(form_vals):.0f}")
-        self.value_rows["Load"].minmax_label.setText(f"min {min(load_vals):.0f}  ·  max {max(load_vals):.0f}")
+        self.value_rows["Fitness"].minmax_label.setText(f"min {min(fitness_vals):.0f}  ·  max {max(fitness_vals):.0f} {plotstyle.FITNESS_UNIT}")
+        self.value_rows["Fatigue"].minmax_label.setText(f"min {min(fatigue_vals):.0f}  ·  max {max(fatigue_vals):.0f} {plotstyle.FITNESS_UNIT}")
+        self.value_rows["Form"].minmax_label.setText(f"min {min(form_vals):.0f}  ·  max {max(form_vals):.0f} {plotstyle.FITNESS_UNIT}")
+        self.value_rows["Load"].minmax_label.setText(f"min {min(load_vals):.0f}  ·  max {max(load_vals):.0f} {plotstyle.LOAD_UNIT}")
         for name in ("Fitness", "Fatigue", "Form", "Load"):
             row = self.value_rows[name]
             row.set_scale(value_pt, name_pt, minmax_pt)
@@ -89,8 +89,7 @@ class FitnessChartWindow(QDialog):
         body.addWidget(values_panel)
 
         top = plot_widget.addPlot(row=0, col=0, axisItems={"bottom": pg.DateAxisItem()})
-        top.setLabel("left", "Fitness / Fatigue")
-        top.showGrid(x=True, y=True, alpha=0.2)
+        plotstyle.style(top, left=plotstyle.label("Fitness / Fatigue", plotstyle.FITNESS_UNIT))
         top.addLegend()
         fitness_curve = top.plot(x, [d["fitness"] for d in days], pen=pg.mkPen("#3987e5", width=2), name="Fitness")
         fatigue_curve = top.plot(x, [d["fatigue"] for d in days], pen=pg.mkPen("#d95926", width=2), name="Fatigue")
@@ -99,8 +98,7 @@ class FitnessChartWindow(QDialog):
             curve.setClipToView(True)
 
         middle = plot_widget.addPlot(row=1, col=0, axisItems={"bottom": pg.DateAxisItem()})
-        middle.setLabel("left", "Form")
-        middle.showGrid(x=True, y=True, alpha=0.2)
+        plotstyle.style(middle, left=plotstyle.label("Form", plotstyle.FITNESS_UNIT))
         middle.setXLink(top)
         forms = [d["form"] for d in days]
         pos = [(bx, by) for bx, by in zip(x, forms) if by >= 0]
@@ -118,8 +116,7 @@ class FitnessChartWindow(QDialog):
             middle.addItem(pg.BarGraphItem(x=[tx], height=[ty], width=width, brush=None, pen=pg.mkPen(color, width=2)))
 
         bottom = plot_widget.addPlot(row=2, col=0, axisItems={"bottom": pg.DateAxisItem()})
-        bottom.setLabel("left", "Load")
-        bottom.showGrid(x=True, y=True, alpha=0.2)
+        plotstyle.style(bottom, left=plotstyle.label("Daily load", plotstyle.LOAD_UNIT))
         bottom.setXLink(top)
         bottom.addItem(pg.BarGraphItem(x=x, height=[d["load"] for d in days], width=width, brush=(140, 140, 140)))
 

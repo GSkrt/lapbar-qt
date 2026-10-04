@@ -14,7 +14,7 @@ import pyqtgraph as pg
 from PyQt6.QtCore import QObject, Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from . import branding, chartlegend, fetcher
+from . import branding, chartlegend, fetcher, plotstyle
 
 pg.setConfigOptions(antialias=True)
 
@@ -129,10 +129,8 @@ class ChartsWindow(QDialog):
         for i, s in enumerate(series):
             color = pg.intColor(i, hues=max(len(series), 1))
             plot = self._plot_widget.addPlot(row=i, col=0)
-            plot.setLabel("left", s["label"], units=s["unit"])
-            if i == len(series) - 1:
-                plot.setLabel("bottom", x_label)
-            plot.showGrid(x=True, y=True, alpha=0.2)
+            plotstyle.style(plot, left=plotstyle.label(s["label"], s["unit"]),
+                            bottom=x_label if i == len(series) - 1 else None)
 
             y = [v if v is not None else float("nan") for v in s["values"]]
             curve = plot.plot(x, y, pen=color)

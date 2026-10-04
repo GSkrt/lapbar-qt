@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import QComboBox, QGroupBox, QHBoxLayout, QLabel, QTabWidge
 
 from lapbar import history
 
-from . import weekcompare
+from . import plotstyle, weekcompare
 
 THIS_BLUE = "#3987e5"
 LAST_GREY = "#9e9e9e"
@@ -127,19 +127,17 @@ class WeekComparePanel(QGroupBox):
         self._draw_week(metric, unit, result, color)
         self._draw_history(metric, unit)
 
-    def _axis_style(self, plot, unit: str):
+    def _axis_style(self, plot, left: str, bottom: str | None = None):
         for side in ("left", "bottom"):
             plot.getAxis(side).setStyle(tickFont=_small_font())
-        plot.getAxis("left").setWidth(42)
-        plot.setLabel("left", unit, **{"font-size": "8pt"})
+        plotstyle.style(plot, left=left, bottom=bottom)
         plot.getViewBox().setMouseEnabled(x=False, y=False)
         plot.hideButtons()
-        plot.showGrid(x=False, y=True, alpha=0.15)
 
     def _draw_week(self, metric: str, unit: str, result: dict, gap_color: str | None):
         self.week_plot.clear()
         plot = self.week_plot.getPlotItem()
-        self._axis_style(plot, unit)
+        self._axis_style(plot, plotstyle.label(weekcompare.METRICS[metric][0], unit) + ", running total")
         plot.getAxis("bottom").setTicks([[(i + 0.5, name) for i, name in enumerate(DAY_NAMES)]])
         plot.setXRange(0, 7, padding=0.01)
         series = weekcompare.cumulative(self._activities, metric, self._now)
@@ -167,7 +165,7 @@ class WeekComparePanel(QGroupBox):
         weeks = weekcompare.weekly_totals(self._activities, metric, self._now, WEEKS)
         self.history_plot.clear()
         plot = self.history_plot.getPlotItem()
-        self._axis_style(plot, unit)
+        self._axis_style(plot, plotstyle.label(weekcompare.METRICS[metric][0], unit) + " per week", "week starting")
         xs = list(range(len(weeks)))
         values = [v for _, v in weeks]
         plot.addItem(pg.BarGraphItem(x=xs[:-1], height=values[:-1], width=0.7, brush=LAST_GREY, pen=None))

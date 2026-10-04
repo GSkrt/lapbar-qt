@@ -16,6 +16,8 @@ from PyQt6.QtCore import QEvent, pyqtSignal
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
+from . import plotstyle
+
 MIN_HEIGHT = 90
 MAX_HEIGHT = 220
 
@@ -76,7 +78,7 @@ class FitnessMiniPlot(QWidget):
 
         top = self._plot_widget.addPlot(row=0, col=0)
         top.hideAxis("bottom")
-        top.showGrid(x=True, y=True, alpha=0.15)
+        plotstyle.style(top, left=plotstyle.FITNESS_UNIT)
         top.getViewBox().setMouseEnabled(x=False, y=False)
         top.hideButtons()
         fitness_curve = top.plot(x, [d["fitness"] for d in days], pen=pg.mkPen(FITNESS_BLUE, width=2))
@@ -86,7 +88,7 @@ class FitnessMiniPlot(QWidget):
             curve.setClipToView(True)
 
         middle = self._plot_widget.addPlot(row=1, col=0, axisItems={"bottom": pg.DateAxisItem()})
-        middle.showGrid(x=True, y=True, alpha=0.15)
+        plotstyle.style(middle, left=plotstyle.label("form", plotstyle.FITNESS_UNIT))
         middle.setXLink(top)
         middle.getViewBox().setMouseEnabled(x=False, y=False)
         middle.hideButtons()

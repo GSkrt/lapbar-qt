@@ -15,7 +15,7 @@ METRICS = {
     "time": ("Time", "moving_time_s", 1 / 3600, "h"),
     "distance": ("Distance", "distance_km", 1.0, "km"),
     "climb": ("Climb", "elevation_m", 1.0, "m"),
-    "effort": ("Effort", "suffer_score", 1.0, "effort"),
+    "effort": ("Effort", "suffer_score", 1.0, "pts"),
 }
 # Below this difference the two weeks count as level: a few minutes, a kilometre, a small climb.
 EVEN_WITHIN = {"time": 5 / 60, "distance": 1.0, "climb": 20.0, "effort": 3.0}
