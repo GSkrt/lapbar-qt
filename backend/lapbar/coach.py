@@ -31,7 +31,7 @@ import subprocess
 from datetime import date, datetime
 from pathlib import Path
 
-from . import config, excuses, platforms, popups, prefs, system
+from . import config, excuses, notify, platforms, popups, prefs
 
 MODES = ("off", "motivational", "drill")
 TONES = ("motivational", "drill")
@@ -221,15 +221,15 @@ def tick(summary: dict, now: datetime | None = None, settings: dict | None = Non
 
 def show(event: dict, day: str, timeout_ms: int = POPUP_MS) -> str | None:
     """Show a popup through the desktop's notification service and wait for it. A button press is recorded as that day's
-    excuse. Returns the excuse key that was chosen, or None."""
-    command = [system.tool("notify-send"), "-a", "lapbar", "-u", "normal", "-t", str(timeout_ms), event["title"], event["body"]]
-    for a in event.get("actions") or []:
-        command += ["-A", f"{a['key']}={a['label']}"]
+    excuse. Returns the excuse key that was chosen, or None.
+
+    Sent over the session bus (notify.py), never as `notify-send` arguments: the text can carry fitness reasons,
+    and a command line is readable by every account on the machine."""
     try:
-        done = subprocess.run(command, capture_output=True, text=True, timeout=timeout_ms / 1000 + 30)
-    except (OSError, subprocess.SubprocessError):
+        chosen = notify.show(event["title"], event["body"], [(a["key"], a["label"]) for a in event.get("actions") or []],
+                             timeout_ms)
+    except (OSError, notify.DBusError):
         return None
-    chosen = done.stdout.strip()
     if chosen in excuses.LABELS:
         excuses.add(day, chosen)
         return chosen

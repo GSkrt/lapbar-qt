@@ -144,3 +144,11 @@ def test_the_duckdb_install_hint_fits_the_system(monkeypatch):
     assert export._install_commands() == [f"{sys.executable} -m pip install duckdb"]
     monkeypatch.setattr(platforms, "FROZEN", True)                  # a packaged app can't take packages
     assert export._install_commands() == []
+
+
+def test_without_a_session_bus_the_command_line_popup_just_says_so(monkeypatch):
+    from lapbar import notify
+    for platform in ("darwin", "win32"):
+        monkeypatch.setattr(notify.sys, "platform", platform)
+        with pytest.raises(notify.DBusError, match="no session bus"):
+            notify.show("t", "b")
