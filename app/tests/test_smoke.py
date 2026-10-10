@@ -72,7 +72,7 @@ def _summary():
         d = (today - timedelta(days=i)).isoformat()
         days.append({"date": d, "load": float(i % 7 * 10), "fitness": 20 + i % 5, "fatigue": 25 - i % 9,
                      "form": float((i % 11) - 5), "warmup": False})
-    ride = {"id": 42, "start": f"{today.isoformat()}T17:00:00Z", "sport": "Ride", "family": "ride",
+    ride = {"id": 42, "start": f"{today.isoformat()}T00:00:00Z", "sport": "Ride", "family": "ride",
             "name": "Evening Ride", "distance_km": 17.1, "elevation_m": 286, "moving_time_s": 2460,
             "elapsed_time_s": 2600, "avg_speed_kmh": 24.9, "max_speed_kmh": 51.0, "pace_s": None,
             "avg_watts": 200, "avg_heartrate": 130, "avg_cadence": 74, "url": "https://www.strava.com/activities/42"}
