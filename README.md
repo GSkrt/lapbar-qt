@@ -114,18 +114,6 @@ wizard, and start-at-login — built as PyQt6 `QWidget`/`QDialog` views, not spa
 - `backend/tests/` and `app/tests/` — run both with CI (`.github/workflows/tests.yml`), or locally with
   `cd backend && uv run --extra dev pytest`.
 
-## Decided
-
-- **Shape:** a system tray icon (`QSystemTrayIcon`), not a KDE Plasma widget and not a standalone window. Works
-  across KDE, GNOME (with the AppIndicator extension), XFCE and most others — the actual cross-distro goal,
-  which a Plasma-only plasmoid wouldn't have met. Trades away LapBar's rotating bar-text frame for an icon plus a
-  tooltip; the click-to-open popup carries over.
-- **Toolkit:** PyQt6, imported and confirmed working on this machine (`python-pyqt6` 6.11.0 from Arch's own
-  `extra` repo, GPL-licensed — compatible with this project's GPL-3.0-or-later without any extra consideration).
-  Since the backend is already Python, PyQt6 can host both in one process: no more subprocess-and-parse-JSON
-  boundary between the UI and `lapbar/` the way Quickshell talks to `bin/lapbar` today. The four windows LapBar
-  spawns separately (charts, data, details, how-to) become native `QWidget`/`QDialog` views instead.
-
 ## Still open
 
 - **AUR:** `packaging/PKGBUILD` is ready but not submitted — new-account registration on the AUR is currently
