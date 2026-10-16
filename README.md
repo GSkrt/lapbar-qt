@@ -3,13 +3,47 @@
 A standalone, PyQt6 sibling of [LapBar](https://github.com/GSkrt/lapbar): a system tray icon instead of an Omarchy
 bar widget, aimed at every mainstream distro (not only Arch/pacman, not tied to Omarchy or Quickshell at all).
 
-## Running it
+> **Status: mostly untested.** Developed and run day-to-day on Arch Linux only. The packaged Windows `.exe` and
+> macOS `.app` builds pass CI's own self-test (the app starts up and exits cleanly) but have not been tried by
+> hand on real Windows or macOS machines — there isn't one available to test macOS on at all. Linux distros other
+> than Arch haven't been tried either. Expect rough edges; please open an issue with what you hit.
 
-Linux, Windows and macOS. Python 3.11+, plus PyQt6 and pyqtgraph:
+## Installing
 
-- **Arch:** `sudo pacman -S python-pyqt6 python-pyqtgraph`, then `app/bin/lapbar-qt`.
-- **Windows / macOS / other distros:** `python -m pip install -r requirements.txt`, then
-  `python app/bin/lapbar-qt`. On Windows, double-clicking `app\bin\lapbar-qt.pyw` starts it without a console window.
+### Arch Linux
+
+Not yet on the AUR (account registration there is currently closed). Until then, build the same `PKGBUILD` it
+would use, straight from this repo:
+
+```sh
+git clone https://github.com/GSkrt/lapbar-qt && cd lapbar-qt/packaging
+makepkg -si
+```
+
+It's a VCS package (`lapbar-qt-git`), so it always builds whatever is currently on `main`; rerun `makepkg -si` to
+update. Running it from source without installing works too, the same way as "Other Linux distros" below.
+
+### Other Linux distros
+
+No native package yet, run from source with pip:
+
+```sh
+python -m pip install -r requirements.txt   # PyQt6, pyqtgraph
+git clone https://github.com/GSkrt/lapbar-qt && cd lapbar-qt
+python app/bin/lapbar-qt
+```
+
+Or with your distro's own Qt6 bindings package instead of pip, if it has one: `python3-pyqt6` on Debian/Ubuntu,
+`python3-qt6` on Fedora, `python3-pyqt6` on openSUSE. `pyqtgraph` is usually pip-only.
+
+### Windows / macOS
+
+Download the latest build from [Releases](https://github.com/GSkrt/lapbar-qt/releases) — a single `lapbar-qt.exe`
+for Windows, or `lapbar-qt.app` in a `.dmg` for macOS (Apple silicon). See
+[Packaged apps](#packaged-apps-windows-exe-macos-app-linux-binary) below for the first-launch security prompt.
+Alternatively, run from source the same way as "Other Linux distros" above (`python -m pip install -r
+requirements.txt`, then `python app/bin/lapbar-qt`, or double-click `app\bin\lapbar-qt.pyw` on Windows to skip the
+console window).
 
 What differs per system, all handled in `backend/lapbar/platforms.py` and `vault.py`:
 
@@ -36,12 +70,17 @@ a `HKCU\...\CurrentVersion\Run` value on Windows (it shows under Task Manager > 
 the entry at where the app runs from, so moving the `.exe` or `.app` doesn't break it. Hyprland, Sway and
 similar compositors don't read `~/.config/autostart`; the app says so and shows the line for their config.
 
-### Packaged apps (Windows .exe, macOS .app)
+### Packaged apps (Windows .exe, macOS .app, Linux binary)
 
-`.github/workflows/build.yml` builds them with PyInstaller (`packaging/lapbar-qt.spec`): a single
-`lapbar-qt.exe` for Windows, and `lapbar-qt.app` in a `.dmg` for macOS (Apple silicon), each self-tested
-after the build. Pushing a version tag (`git tag v0.2.0 && git push --tags`) builds both and publishes them as a
-GitHub release; running the workflow by hand only keeps them as downloadable artifacts for 14 days.
+`.github/workflows/build.yml` builds all three with PyInstaller (`packaging/lapbar-qt.spec`): a single
+`lapbar-qt.exe` for Windows, `lapbar-qt.app` in a `.dmg` for macOS (Apple silicon), and a single `lapbar-qt`
+binary in a `.tar.gz` for generic Linux (Arch users should prefer `packaging/PKGBUILD` instead, see
+[Arch Linux](#arch-linux) above) — each self-tested after the build. Pushing a version tag
+(`git tag v0.2.0 && git push --tags`) builds and publishes all three as a GitHub release; running the workflow by
+hand only keeps them as downloadable artifacts for 14 days, unless published as a release separately. The first
+build was made and published this way, as a rolling `main` pre-release rather than a version tag — the app is
+still mostly untested (see the disclaimer above), so it gets replaced wholesale by later `main` builds rather than
+accumulating version numbers, until there's a real `v*` release.
 
 They are not code-signed, so the first launch shows a warning: on Windows, SmartScreen's "More info" then "Run
 anyway"; on macOS 15 and later, try to open it once, then System Settings > Privacy & Security > "Open Anyway"
@@ -51,22 +90,19 @@ Manage data's export is unavailable in these builds.
 
 ## Where this stands
 
-Nothing runs yet. What exists so far is the **shared backend**, copied from LapBar and trimmed of everything that
-was Quickshell-specific, as a working starting point — not a finished product.
+Runs day to day on Arch. The tray app has its own native windows for everything LapBar shows through Quickshell —
+the popup/tooltip, ride charts, fitness chart, data window, details window, plus week-vs-week comparison, a setup
+wizard, and start-at-login — built as PyQt6 `QWidget`/`QDialog` views, not spawned Quickshell processes.
 
 - `backend/lapbar/` — the Strava/fitness/coach backend: auth (with keyring storage), the hardened HTTP layer,
   fitness/fatigue/form, kudos and comments tracking, the DuckDB export, the whole request-budget and caching
-  logic. This is the same code LapBar uses, unmodified apart from removing the four modules below.
+  logic. A copy of LapBar's own backend (see [Relationship to LapBar](#relationship-to-lapbar)), trimmed of
+  everything Quickshell-specific.
 - `backend/bin/lapbar` — the same CLI entry point LapBar has (`lapbar fetch --print`, `lapbar api`, etc.), useful
-  for exploring the backend and as a reference for what a native UI here will eventually call directly instead of
-  going through a subprocess.
-- `backend/tests/` — LapBar's test suite, with anything that read a `.qml` file removed. 412 passed, 1 skipped
-  (a check for this project's own README listing every Strava call, skipped until there is one written).
-
-**Removed, not adapted:** `charts.py`, `helpwin.py`, `activitywin.py` (100% "spawn a Quickshell process and float
-it" — nothing to reuse) and `manage.py`'s `open_window()` (its `status()` data-aggregation half is kept). A native
-UI here will need its own equivalent of all four windows LapBar has — the popup, the ride charts, the fitness
-chart, the data window, the details window — built against whatever toolkit gets chosen, not this code.
+  for exploring the backend directly instead of through the tray app.
+- `app/lapbar_qt/` — the PyQt6 tray app: `tray.py` is the entry point, the rest are its windows and widgets.
+- `backend/tests/` and `app/tests/` — run both with CI (`.github/workflows/tests.yml`), or locally with
+  `cd backend && uv run --extra dev pytest`.
 
 ## Decided
 
@@ -82,9 +118,12 @@ chart, the data window, the details window — built against whatever toolkit ge
 
 ## Still open
 
-- **Packaging:** AUR/pacman first (fastest path to something real, matches this machine's distro family) with a
-  Flatpak later, or Flatpak from the start for genuine day-one portability to every distro. Not urgent until
-  there's an app to package.
+- **AUR:** `packaging/PKGBUILD` is ready but not submitted — new-account registration on the AUR is currently
+  closed. Until it reopens, Arch users build it locally (see [Installing](#arch-linux)).
+- **Flatpak or AppImage:** neither built yet. An AppImage is the lower-effort next step — PyInstaller already
+  produces the single-file Linux binary it would wrap, no sandboxing/portals work needed. Flatpak reaches
+  Flathub's audience but needs a manifest and portal permissions for the keyring (`secret-tool`) and
+  notifications it uses, and Flathub has its own review queue.
 
 ## Relationship to LapBar
 

@@ -1,0 +1,53 @@
+# Maintainer: Gregor Skrt <gregor.skrt@gmail.com>
+#
+# Not on the AUR yet (new-account registration there is currently closed, see README.md). Until then:
+#   makepkg -si
+# from this directory. It's a VCS package (pkgver has no meaning until there's a tagged release), so every
+# rebuild pulls the current tip of `main` -- rerun `makepkg -si` to update.
+pkgname=lapbar-qt-git
+pkgver=r1.0000000
+pkgrel=1
+pkgdesc="Strava activity tray icon, independent of Omarchy/Quickshell (PyQt6)"
+arch=('any')
+url="https://github.com/GSkrt/lapbar-qt"
+license=('GPL-3.0-or-later')
+depends=('python' 'python-pyqt6' 'python-pyqtgraph')
+optdepends=('duckdb: Manage data > DuckDB export' 'libsecret: Strava secret and tokens stored in the keyring')
+makedepends=('git')
+provides=('lapbar-qt')
+conflicts=('lapbar-qt')
+source=("$pkgname::git+$url.git#branch=main")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+  cd "$pkgname"
+
+  install -dm755 "$pkgdir/usr/lib/lapbar-qt"
+  cp -r app "$pkgdir/usr/lib/lapbar-qt/"
+  cp -r backend "$pkgdir/usr/lib/lapbar-qt/"
+  rm -rf "$pkgdir"/usr/lib/lapbar-qt/app/tests "$pkgdir"/usr/lib/lapbar-qt/backend/tests \
+         "$pkgdir"/usr/lib/lapbar-qt/backend/lapbar.egg-info
+  find "$pkgdir/usr/lib/lapbar-qt" -name __pycache__ -exec rm -rf {} +
+
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s /usr/lib/lapbar-qt/app/bin/lapbar-qt "$pkgdir/usr/bin/lapbar-qt"
+
+  install -Dm644 app/lapbar_qt/assets/icon.png "$pkgdir/usr/share/pixmaps/lapbar-qt.png"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/lapbar-qt.desktop" <<-EOF
+	[Desktop Entry]
+	Type=Application
+	Name=LapBar
+	Comment=$pkgdesc
+	Exec=/usr/bin/lapbar-qt
+	Icon=lapbar-qt
+	Terminal=false
+	Categories=Utility;
+	StartupNotify=false
+	EOF
+}
