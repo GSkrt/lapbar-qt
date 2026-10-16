@@ -1,5 +1,7 @@
 # lapbar-qt
 
+[![Releases](https://img.shields.io/github/v/release/GSkrt/lapbar-qt?include_prereleases&label=downloads)](https://github.com/GSkrt/lapbar-qt/releases)
+
 A standalone, PyQt6 sibling of [LapBar](https://github.com/GSkrt/lapbar): a system tray icon instead of an Omarchy
 bar widget, aimed at every mainstream distro (not only Arch/pacman, not tied to Omarchy or Quickshell at all).
 
@@ -36,10 +38,18 @@ python app/bin/lapbar-qt
 Or with your distro's own Qt6 bindings package instead of pip, if it has one: `python3-pyqt6` on Debian/Ubuntu,
 `python3-qt6` on Fedora, `python3-pyqt6` on openSUSE. `pyqtgraph` is usually pip-only.
 
+A prebuilt `lapbar-qt-linux-x64.tar.gz` (no Python/Qt install needed) is also on the
+**[Releases page](https://github.com/GSkrt/lapbar-qt/releases)**, same caveat as everything there: built and
+self-tested by CI, not yet run by hand outside this Arch machine.
+
 ### Windows / macOS
 
-Download the latest build from [Releases](https://github.com/GSkrt/lapbar-qt/releases) — a single `lapbar-qt.exe`
-for Windows, or `lapbar-qt.app` in a `.dmg` for macOS (Apple silicon). See
+⚠️ **Not tested on real Windows or macOS hardware.** These builds only pass CI's own headless self-test (the app
+starts up and exits cleanly); nobody has run them by hand yet, and there's no Mac available here to test on at
+all. Try one and please open an issue with whatever you hit.
+
+Download the latest build from the **[Releases page](https://github.com/GSkrt/lapbar-qt/releases)** — a single
+`lapbar-qt.exe` for Windows, or `lapbar-qt.app` in a `.dmg` for macOS (Apple silicon). See
 [Packaged apps](#packaged-apps-windows-exe-macos-app-linux-binary) below for the first-launch security prompt.
 Alternatively, run from source the same way as "Other Linux distros" above (`python -m pip install -r
 requirements.txt`, then `python app/bin/lapbar-qt`, or double-click `app\bin\lapbar-qt.pyw` on Windows to skip the
